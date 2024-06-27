@@ -214,6 +214,10 @@ def map():
     st.title('Map')
     data = load_data()
     if not data.empty:
+            st.sidebar.markdown("Filters")
+            produit= st.sidebar.multiselect('Select type of product', options=data['Product'].unique())
+            data=data[ (data['Product'].isin(produit) if produit else data['Product'].notnull())]
+
             col1, col2 = st.columns([6, 1])
             with col2:
                 st.write("Data Filtering Options:")
@@ -242,6 +246,7 @@ def map():
                 key="properties.ISO2"
                 field=["NAME","PW DSV"]
                 alias=["To : ", "Value: "]
+                
             
             elif selected_level== "Nuts1":
                 data=data.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
@@ -318,6 +323,16 @@ def map():
                         popup = folium.Popup(iframe, max_width=500)).add_to(m)
 
                     TagFilterButton(categories).add_to(m)
+            if selected_country == selected_country :
+                try:
+                    nuts_of_the_ZC=zip_code["NUTS3"].loc[zip_code["ZC to"]==selected_country]
+                    polygon = levl3['geometry'].loc[levl3["NUTS_ID"]==(nuts_of_the_ZC.tolist()[0])]
+                    centroid = polygon.centroid
+                    long=centroid.x.tolist()[0]
+                    lat=centroid.y.tolist()[0]
+                    folium.Marker([lat, long],icon=folium.Icon(color='red', ), tooltip=f" From {selected_country}").add_to(m)
+                except Exception :
+                    print ("error")
 
             Fullscreen(position="topleft").add_to(m)
             with col1:
