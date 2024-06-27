@@ -20,6 +20,8 @@ from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import streamlit.components.v1 as components
+import base64
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -49,7 +51,10 @@ def upload_view_page():
         data = pd.read_excel(uploaded_file)
         data['Date'] = pd.to_datetime(data['Date'])
         st.write(data)
+
+def summary_page():
         st.title("Shipment summary")
+        data = load_data()
 
         nb_grp=(data["Product"]=="GRP").sum()
         nb_ltl=(data["Product"]=="LTL").sum()
@@ -214,16 +219,15 @@ def map():
     st.title('Map')
     data = load_data()
     if not data.empty:
-            st.sidebar.markdown("Filters")
+            st.sidebar.markdown("Options")
+            ship_from = data['ZC from'].dropna().unique().tolist()
+            selected_country = st.sidebar.selectbox('Select Shipment from', ship_from)
+            selected_level = st.sidebar.selectbox('Select level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
+            st.sidebar.write("Filters")
             produit= st.sidebar.multiselect('Select type of product', options=data['Product'].unique())
             data=data[ (data['Product'].isin(produit) if produit else data['Product'].notnull())]
 
-            col1, col2 = st.columns([6, 1])
-            with col2:
-                st.write("Data Filtering Options:")
-                ship_from = data['ZC from'].dropna().unique().tolist()
-                selected_country = st.selectbox('Select Shipment from', ship_from)
-                selected_level = st.selectbox('Select level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
+            
                 
         
             # Data filtering options
@@ -307,8 +311,8 @@ def map():
             
         
     
-            with col2:
-                if st.checkbox('show DSV branches'):
+            
+            if st.sidebar.checkbox('show DSV branches'):
                     categories=dsv["Country"].unique().tolist()
                     for k in range(len(dsv)):
                         location = dsv["lat"].iloc[k],dsv["lon"].iloc[k]
@@ -335,8 +339,14 @@ def map():
                     print ("error")
 
             Fullscreen(position="topleft").add_to(m)
-            with col1:
-                folium_static(m, height=700,width=1200)
+            html_string = m.get_root().render()
+            
+            folium_static(m, height=700,width=1200)
+            def create_download_button(html_string, filename):
+                    b64 = base64.b64encode(html_string.encode()).decode()
+                    href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
+                    return href
+            st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
 
     
     
@@ -346,14 +356,16 @@ def map():
 
 # Sidebar for navigation
 st.sidebar.header("Go to")
-page = st.sidebar.selectbox("Choose a page", ['Upload and View Data', 'Shipment Profile' ,'Maps'])
+page = st.sidebar.selectbox("Choose a page", ['Upload Data', 'shipment summary', 'Shipment Profile' ,'Maps'])
 
-if page == 'Upload and View Data':
+if page == 'Upload Data':
     upload_view_page()
 elif page == 'Maps':
     map()
 elif page== "Shipment Profile":
     analysis_page()
+elif page=='shipment summary':
+    summary_page()
 
 # Initialize session state for file storage
 if 'uploaded_file' not in st.session_state:
