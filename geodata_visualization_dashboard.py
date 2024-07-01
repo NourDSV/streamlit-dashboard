@@ -98,28 +98,66 @@ def summary_page():
         values_way=[dom,exp,imp,trans]
         labels_way=["Dom","Exp","Imp","Trans"]
 
-        col1, col2= st.columns([2,1])
+        col1, col2,col3,col4 = st.columns([1.3,1.3,2,2])
         with col1:
-            fig = make_subplots(rows=1, cols=2, specs=[[{'type':'domain'}, {'type':'domain'}]])
-
+            fig = make_subplots(rows=1, specs=[[{'type':'domain'}]])
             fig.add_trace(go.Pie(labels=labels, values=sh_values, name="nbr of shipment"),1,1)
-            fig.add_trace(go.Pie(labels=labels, values=pw_values, name="PW"),1,2)
-        
-
             fig.update_traces(hole=.5,marker=dict(colors=colors))
-
             fig.update_layout(
-            title_text="",
-            annotations=[dict(text='Shipments', x=0.17, y=0.5, font_size=20, showarrow=False),dict(text='PayWeight', x=0.83, y=0.5, font_size=20, showarrow=False)])
+            title_text="Product",
+            annotations=[dict(text='Shipments', x=0.27, y=0.5, font_size=20, showarrow=False)])
             st.plotly_chart(fig,use_container_width=True)
         with col2:
             fig = make_subplots(rows=1, cols=1, specs=[[{'type':'domain'}]])
             fig.add_trace(go.Pie(labels=labels_way, values=values_way, name="Way"),1,1)
             fig.update_traces(hole=.5,marker=dict(colors=['#002664','#5D7AB5','#A9BCE2','#000000']))
-            fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)])
+            fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)],
+            title_text="Type")
+            st.plotly_chart(fig,use_container_width=True)
+        
+        with col3:
+            
+            my_list = sorted(data["Bracket"].tolist())
+            count = Counter(my_list)
+            total_items = sum(count.values())
+            count_list = list(count.items())
+            count_percentage_list = [(item, count, f"{round((count / total_items) * 100, 2)}%") for item, count in count.items()]
+            df = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
+            fig = px.bar(df, x='bracket', y='Count',color_discrete_sequence=['#002664'], text='percentage')
+            fig.update_layout(
+                title="Brackets",
+                xaxis_title='Bracket',
+                yaxis_title='Count',
+                xaxis=dict(type='category')  
+            )
             st.plotly_chart(fig,use_container_width=True)
             
-        
+        with col4:
+             
+            data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
+            data1=pd.merge(data,zip_code,on='ZC to',how="left")
+            data1['count'] = data1.groupby('ZC to')['ZC to'].transform('count')
+            data1["PW DSV"]=(data1["PW DSV"])/data1["count"]
+            data1=data1.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+            merge=pd.merge(levl0,data1,right_on="nuts0" ,left_on="ISO2",how="right")
+            m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, scroll_wheel_zoom=False )
+            colums=["nuts0","PW DSV"]
+            key="properties.ISO2"
+            st.write("**Countries**")
+            choropleth=folium.Choropleth(
+                geo_data=merge,
+                name="choropleth",
+                data=merge,
+                columns=colums,
+                key_on=key,
+                fill_color='OrRd',
+                fill_opacity=0.7,
+                legend=True,
+                highlight=True,
+                
+                ).geojson.add_to(m)
+            
+            folium_static(m,width=450, height=350)
 
         col1,col2 = st.columns([2,1])
         with col1:
@@ -127,6 +165,7 @@ def summary_page():
             df4=df4.rename(columns={'Date' : 'Number of shipments'})
             df4=df4.T
             df4["Total"]=df4.sum(axis=1)
+            
             st.table(df4)
              
         with col2:
@@ -136,7 +175,7 @@ def summary_page():
 
 
 def analysis_page ():
-    st.title("Shipement Profile")
+    st.title("Shipment Profile")
     data = load_data()
     st.sidebar.markdown("## Filter Options for the pivot table")
     
@@ -161,21 +200,22 @@ def analysis_page ():
     pivot["total"]=pivot.sum(axis=1)
     pivot["%"]=round(pivot["total"] /( pivot['total'].sum())*100,2)
     pivot.fillna('', inplace=True)
+
+    
         
         
     col1, col2 = st.columns(2)
     with col1:
             st.title('Pivot Table')
-
-
             st.write(pivot)
+
             st.title('Collection')
             df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
             df1=df1.rename(columns={'Date': 'Shipments'})
             st.write(df1)
             df2=df1.sum(numeric_only=True).to_frame().T
             df2.index=["Total"]
-            st.write(df2)
+            st.dataframe(df2)
 
             df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df3=df3.rename(columns={'Date' : 'Number of shipments'})
@@ -356,16 +396,36 @@ def map():
 
 # Sidebar for navigation
 st.sidebar.header("Go to")
-page = st.sidebar.selectbox("Choose a page", ['Upload Data', 'shipment summary', 'Shipment Profile' ,'Maps'])
 
-if page == 'Upload Data':
+
+
+
+if 'page' not in st.session_state:
+    st.session_state.page = 'Upload Data'
+
+col1, col2 = st.sidebar.columns(2)
+with col1:
+     
+    if st.sidebar.button('Upload Data'):
+        st.session_state.page = 'Upload Data'
+    if st.sidebar.button('Shipment Summary'):
+        st.session_state.page = 'Shipment Summary'
+with col2:
+
+    if st.sidebar.button('Shipment Profile'):
+        st.session_state.page = 'Shipment Profile'
+    if st.sidebar.button('Maps'):
+        st.session_state.page = 'Maps'
+
+if st.session_state.page == 'Upload Data':
     upload_view_page()
-elif page == 'Maps':
-    map()
-elif page== "Shipment Profile":
-    analysis_page()
-elif page=='shipment summary':
+elif st.session_state.page == 'Shipment Summary':
     summary_page()
+elif st.session_state.page == 'Shipment Profile':
+    analysis_page()
+elif st.session_state.page == 'Maps':
+    map()
+                                              
 
 # Initialize session state for file storage
 if 'uploaded_file' not in st.session_state:
