@@ -52,43 +52,10 @@ def upload_view_page():
         data['Date'] = pd.to_datetime(data['Date'])
         st.write(data)
 
+
 def summary_page():
         st.title("Shipment summary")
         data = load_data()
-
-        nb_grp=(data["Product"]=="GRP").sum()
-        nb_ltl=(data["Product"]=="LTL").sum()
-        nb_ftl=(data["Product"]=="FTL").sum()
-        nb_total= len(data)
-
-        kg_grp=data["kg"][data["Product"]=="GRP"].sum()
-        kg_ltl=data["kg"][data["Product"]=="LTL"].sum()
-        kg_ftl=data["kg"][data["Product"]=="FTL"].sum()
-        kg_total=data["kg"].sum()
-
-        m_grp=data["m3"][data["Product"]=="GRP"].sum()
-        m_ltl=data["m3"][data["Product"]=="LTL"].sum()
-        m_ftl=data["m3"][data["Product"]=="FTL"].sum()
-        m_total=data["m3"].sum()
-
-        ldm_grp=data["ldm"][data["Product"]=="GRP"].sum()
-        ldm_ltl=data["ldm"][data["Product"]=="LTL"].sum()
-        ldm_ftl=data["ldm"][data["Product"]=="FTL"].sum()
-        ldm_total=data["ldm"].sum()
-
-        
-        pw_grp=data["PW DSV"][data["Product"]=="GRP"].sum()
-        pw_ltl=data["PW DSV"][data["Product"]=="LTL"].sum()
-        pw_ftl=data["PW DSV"][data["Product"]=="FTL"].sum()
-        pw_total=data["PW DSV"].sum()
-
-        labels = ['GRP','FTL','LTL']
-        colors =['#002664','#5D7AB5','#A9BCE2']
-        sh_values = [nb_grp, nb_ftl, nb_ltl]
-        kg_values=[kg_grp,kg_ltl,kg_ftl]
-        m3_values=[m_grp,m_ltl,m_ftl]
-        ldm_values=[ldm_grp,ldm_ltl,ldm_ftl]
-        pw_values=[pw_grp,pw_ltl,pw_ftl]
 
         dom=data["ZC from"][data["Way"]=="Dom"].count()
         exp=data["ZC from"][data["Way"]=="Exp"].count()
@@ -100,6 +67,16 @@ def summary_page():
 
         col1, col2,col3,col4 = st.columns([1.3,1.3,2,2])
         with col1:
+            produit=data["Product"].unique().tolist()
+            labels = []
+            sh_values = []
+            dict_product={}
+            for k in produit:
+                summ=(data["Product"]==k).sum()
+                dict_product[f'nbr_{k}']=summ
+                sh_values.append(summ)
+                labels.append(k)
+            colors =['#002664','#5D7AB5','#A9BCE2']
             fig = make_subplots(rows=1, specs=[[{'type':'domain'}]])
             fig.add_trace(go.Pie(labels=labels, values=sh_values, name="nbr of shipment"),1,1)
             fig.update_traces(hole=.5,marker=dict(colors=colors))
@@ -120,10 +97,9 @@ def summary_page():
             my_list = sorted(data["Bracket"].tolist())
             count = Counter(my_list)
             total_items = sum(count.values())
-            count_list = list(count.items())
             count_percentage_list = [(item, count, f"{round((count / total_items) * 100, 2)}%") for item, count in count.items()]
-            df = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
-            fig = px.bar(df, x='bracket', y='Count',color_discrete_sequence=['#002664'], text='percentage')
+            df_bracket = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
+            fig = px.bar(df_bracket, x='bracket', y='Count',color_discrete_sequence=['#002664'], text='percentage')
             fig.update_layout(
                 title="Brackets",
                 xaxis_title='Bracket',
@@ -158,6 +134,40 @@ def summary_page():
                 ).geojson.add_to(m)
             
             folium_static(m,width=450, height=350)
+        col1,col2,col3 = st.columns([1,1,3])
+        with col1:
+            df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+            df6=df6.rename(columns={'Date' : 'Number of shipments'})
+            df6=df6.sort_values(by="Number of shipments",ascending= False )
+            df6=df6.head(5)
+            df6=df6.sort_values(by="Number of shipments",ascending= True )
+            df6 = df6.reset_index()
+            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="                    Top delivery places",
+            color_discrete_sequence=['#002664'],
+            orientation='h',
+            hover_data={'kg': True, 'ldm': True})  
+            fig.update_layout(
+                xaxis_title='Shipments',  
+                yaxis_title='' )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+            with col2:
+                df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df7=df7.rename(columns={'Date' : 'Number of shipments'})
+                df7=df7.sort_values(by="Number of shipments",ascending= False )
+                df7=df7.head(5)
+                df7=df7.sort_values(by="Number of shipments",ascending= True )
+                df7 = df7.reset_index()
+                fig = px.bar(df7, y='ZC from', x='Number of shipments', title="               Top collection places",
+                color_discrete_sequence=['#002664'],
+                orientation='h',
+                hover_data={'kg': True, 'ldm': True})  
+                fig.update_layout(
+                xaxis_title='Shipments',  
+                yaxis_title='' )
+
+                st.plotly_chart(fig, use_container_width=True)
 
         col1,col2 = st.columns([2,1])
         with col1:
@@ -231,6 +241,48 @@ def analysis_page ():
 
             st.title("important shipments")
             st.write(df3)
+
+    st.title("Saisonality")
+    col3, col4 = st.columns([1,2])
+    with col3:
+
+            data['Month'] = data['Date'].dt.to_period('M')
+            df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
+            df4=df4.rename(columns={'Date': 'Shipments'})
+            df4['Month'] = df4['Month'].astype(str)
+            
+            st.write("")
+            st.dataframe(df4)
+            metric = st.selectbox("Select fig to show",['Shipments', 'kg', 'ldm', 'PW DSV'])
+    with col4:
+
+            fig_ship = px.line(df4, x='Month', y='Shipments', markers=True)
+            fig_ship.update_layout(
+                title='Monthly Shipments', 
+                xaxis_title='Month',
+                yaxis_title='Number of Shipments'
+            )
+
+            fig_kg = px.line(df4, x='Month', y='kg', markers=True)
+            fig_kg.update_layout(title=' Kg per month', xaxis_title='Month', yaxis_title='KG')
+
+            fig_ldm = px.line(df4, x='Month', y='ldm', markers=True)
+            fig_ldm.update_layout(title=' ldm per month', xaxis_title='Month', yaxis_title='Meters')
+
+            fig_pw = px.line(df4, x='Month', y='PW DSV', markers=True)
+            fig_pw.update_layout(title=' Pay Weight per month', xaxis_title='Month', yaxis_title='Kg')
+
+            
+            
+            if metric == 'Shipments':
+                st.plotly_chart(fig_ship)
+            elif metric == 'kg':
+                st.plotly_chart(fig_kg)
+            elif metric == 'ldm':
+                st.plotly_chart(fig_ldm)
+            elif metric == 'PW DSV':
+                st.plotly_chart(fig_pw)
+
            
             
 
