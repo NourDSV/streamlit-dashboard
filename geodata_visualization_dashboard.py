@@ -27,6 +27,7 @@ levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
 levl1=gpd.read_file("NUTS_1_Q1.geojson")
 levl3=gpd.read_file("NUTS_3_Q1.geojson")
+levl3.drop_duplicates(subset="NUTS_ID", keep="first", inplace=True)
 zip_code=pd.read_excel("zipcode_nuts with uk instead of gb.xlsx")
 dsv=pd.read_excel("DSV Branches.xlsx")
 
@@ -38,8 +39,21 @@ def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     if uploaded_file is not None:
         data = pd.read_excel(uploaded_file)
+        
     else:
         data = pd.DataFrame()
+    if not data.empty:
+        country_codes = ['AD', 'ME', 'RU', 'XK', 'UA', 'BY', 'BA']
+        for code in country_codes:
+            data.loc[data['ZC from'].str[:2] == code, 'ZC from'] = code
+            data.loc[data['ZC to'].str[:2] == code, 'ZC to'] = code
+        data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
+        data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
+    
+    return data
+
+def ldm_calc(data):
+    data["ldm"]=data["kg"]*1
     return data
 
 # Page for uploading and viewing the Excel file
@@ -51,6 +65,15 @@ def upload_view_page():
         data = pd.read_excel(uploaded_file)
         data['Date'] = pd.to_datetime(data['Date'])
         st.write(data)
+        has_ldm = st.radio("Does your shipment profile have the 'Ldm' data ?", ("Yes", "No"))
+        if has_ldm == "No":
+            
+                if 'kg' in data.columns:
+                    ldm_calc(data)
+                    st.write("this is your new data")
+                    st.write(data)
+                else:
+                    st.write("error can't calculate ldm because kg does not existe ")
 
 
 def summary_page():
@@ -111,11 +134,12 @@ def summary_page():
         with col4:
              
             data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
-            data1=pd.merge(data,zip_code,on='ZC to',how="left")
+            data1=pd.merge(data1,zip_code,on='ZC to',how="left")
             data1['count'] = data1.groupby('ZC to')['ZC to'].transform('count')
             data1["PW DSV"]=(data1["PW DSV"])/data1["count"]
             data1=data1.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
             merge=pd.merge(levl0,data1,right_on="nuts0" ,left_on="ISO2",how="right")
+            
             m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, scroll_wheel_zoom=False )
             colums=["nuts0","PW DSV"]
             key="properties.ISO2"
@@ -132,6 +156,12 @@ def summary_page():
                 highlight=True,
                 
                 ).geojson.add_to(m)
+            tooltip = GeoJsonTooltip(
+                fields=colums,
+                aliases=["Delivery country", "Total pay weight"],
+                localize=True
+            )
+            choropleth.add_child(tooltip)
             
             folium_static(m,width=450, height=350)
         col1,col2,col3 = st.columns([1,1,3])
@@ -142,15 +172,18 @@ def summary_page():
             df6=df6.head(5)
             df6=df6.sort_values(by="Number of shipments",ascending= True )
             df6 = df6.reset_index()
-            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="                    Top delivery places",
+            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="                    Top 5 delivery places",
             color_discrete_sequence=['#002664'],
             orientation='h',
-            hover_data={'kg': True, 'ldm': True})  
+            hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
             fig.update_layout(
                 xaxis_title='Shipments',  
                 yaxis_title='' )
 
             st.plotly_chart(fig, use_container_width=True)
+
+        with col3:
+
 
             with col2:
                 df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
@@ -159,7 +192,7 @@ def summary_page():
                 df7=df7.head(5)
                 df7=df7.sort_values(by="Number of shipments",ascending= True )
                 df7 = df7.reset_index()
-                fig = px.bar(df7, y='ZC from', x='Number of shipments', title="               Top collection places",
+                fig = px.bar(df7, y='ZC from', x='Number of shipments', title="               Top 5 collection places",
                 color_discrete_sequence=['#002664'],
                 orientation='h',
                 hover_data={'kg': True, 'ldm': True})  
@@ -219,13 +252,7 @@ def analysis_page ():
             st.title('Pivot Table')
             st.write(pivot)
 
-            st.title('Collection')
-            df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
-            df1=df1.rename(columns={'Date': 'Shipments'})
-            st.write(df1)
-            df2=df1.sum(numeric_only=True).to_frame().T
-            df2.index=["Total"]
-            st.dataframe(df2)
+            
 
             df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df3=df3.rename(columns={'Date' : 'Number of shipments'})
@@ -242,7 +269,7 @@ def analysis_page ():
             st.title("important shipments")
             st.write(df3)
 
-    st.title("Saisonality")
+    st.title("Seasonality")
     col3, col4 = st.columns([1,2])
     with col3:
 
@@ -272,8 +299,6 @@ def analysis_page ():
             fig_pw = px.line(df4, x='Month', y='PW DSV', markers=True)
             fig_pw.update_layout(title=' Pay Weight per month', xaxis_title='Month', yaxis_title='Kg')
 
-            
-            
             if metric == 'Shipments':
                 st.plotly_chart(fig_ship)
             elif metric == 'kg':
@@ -283,8 +308,6 @@ def analysis_page ():
             elif metric == 'PW DSV':
                 st.plotly_chart(fig_pw)
 
-           
-            
 
     with col2:
             st.title("  :bar_chart: Shipment per bracket ")
@@ -303,7 +326,7 @@ def analysis_page ():
             )
             st.plotly_chart(fig)
             st.title("")
-            st.table(df1.describe())
+            st.table(df.describe())
 
 
 # Page for basic data analysis
@@ -440,6 +463,18 @@ def map():
                     return href
             st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
 
+def collection():
+    st.title('Collection')
+    data = load_data()
+     
+    df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
+    df1=df1.rename(columns={'Date': 'Shipments'})
+    st.write(df1)
+    df2=df1.sum(numeric_only=True).to_frame().T
+    df2.index=["Total"]
+    st.dataframe(df2)
+     
+
     
     
     
@@ -454,20 +489,17 @@ st.sidebar.header("Go to")
 
 if 'page' not in st.session_state:
     st.session_state.page = 'Upload Data'
-
-col1, col2 = st.sidebar.columns(2)
-with col1:
-     
-    if st.sidebar.button('Upload Data'):
+if st.sidebar.button('Upload Data'):
         st.session_state.page = 'Upload Data'
-    if st.sidebar.button('Shipment Summary'):
+if st.sidebar.button('Shipment Summary'):
         st.session_state.page = 'Shipment Summary'
-with col2:
-
-    if st.sidebar.button('Shipment Profile'):
+if st.sidebar.button('Shipment Profile'):
         st.session_state.page = 'Shipment Profile'
-    if st.sidebar.button('Maps'):
+if st.sidebar.button('Maps'):
         st.session_state.page = 'Maps'
+if st.sidebar.button("Collection"):
+     st.session_state.page="Collection"
+
 
 if st.session_state.page == 'Upload Data':
     upload_view_page()
@@ -477,6 +509,8 @@ elif st.session_state.page == 'Shipment Profile':
     analysis_page()
 elif st.session_state.page == 'Maps':
     map()
+elif st.session_state.page=="Collection":
+     collection()
                                               
 
 # Initialize session state for file storage
