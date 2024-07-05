@@ -22,6 +22,14 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+
+
+
+
+
+
+
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -62,6 +70,7 @@ def upload_view_page():
     uploaded_file = st.file_uploader("Put your shipment profile here", type=['xlsx'])
     if uploaded_file is not None:
         st.session_state['uploaded_file'] = uploaded_file
+        
         data = pd.read_excel(uploaded_file)
         data['Date'] = pd.to_datetime(data['Date'])
         st.write(data)
@@ -77,6 +86,7 @@ def upload_view_page():
 
 
 def summary_page():
+        
         st.title("Shipment summary")
         data = load_data()
 
@@ -164,15 +174,15 @@ def summary_page():
             choropleth.add_child(tooltip)
             
             folium_static(m,width=450, height=350)
-        col1,col2,col3 = st.columns([1,1,3])
+        col1,col2,col3,col4 = st.columns([1,1,2.5,2.5])
         with col1:
             df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df6=df6.rename(columns={'Date' : 'Number of shipments'})
             df6=df6.sort_values(by="Number of shipments",ascending= False )
-            df6=df6.head(5)
+            df6=df6.head(10)
             df6=df6.sort_values(by="Number of shipments",ascending= True )
             df6 = df6.reset_index()
-            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="                    Top 5 delivery places",
+            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="                    Top 10 delivery places",
             color_discrete_sequence=['#002664'],
             orientation='h',
             hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
@@ -182,17 +192,14 @@ def summary_page():
 
             st.plotly_chart(fig, use_container_width=True)
 
-        with col3:
-
-
-            with col2:
+        with col2:
                 df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
                 df7=df7.rename(columns={'Date' : 'Number of shipments'})
                 df7=df7.sort_values(by="Number of shipments",ascending= False )
-                df7=df7.head(5)
+                df7=df7.head(10)
                 df7=df7.sort_values(by="Number of shipments",ascending= True )
                 df7 = df7.reset_index()
-                fig = px.bar(df7, y='ZC from', x='Number of shipments', title="               Top 5 collection places",
+                fig = px.bar(df7, y='ZC from', x='Number of shipments', title="               Top 10 collection places",
                 color_discrete_sequence=['#002664'],
                 orientation='h',
                 hover_data={'kg': True, 'ldm': True})  
@@ -201,20 +208,51 @@ def summary_page():
                 yaxis_title='' )
 
                 st.plotly_chart(fig, use_container_width=True)
+        
+        with col3:
+            df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+            df3=df3.rename(columns={'Date' : 'Number of shipments'})
+            df3=df3.sort_values(by="Number of shipments",ascending=False )
+            # df3["%"]=df3["PW DSV"]/(sum(df3["PW DSV"]))*100
+            # df3["cum"]=df3["%"].cumsum()
+            df3=df3.head(10)
+            df3 = df3.reset_index()
+            df3["From-to"]=  df3['ZC from'] + ' to ' + df3['ZC to']
+            df3.index=df3["From-to"].tolist()
+            fig = px.bar(df3, y='Number of shipments', x='From-to', title="               Top 10 main lines",
+                color_discrete_sequence=['#5D7AB5'])
+            fig.update_layout(
+                xaxis_title='line',  
+                yaxis_title='shipments' )
 
-        col1,col2 = st.columns([2,1])
-        with col1:
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col4:
             df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df4=df4.rename(columns={'Date' : 'Number of shipments'})
+            df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
             df4=df4.T
             df4["Total"]=df4.sum(axis=1)
-            
-            st.table(df4)
-             
-        with col2:
+            df4 = df4.reset_index()
+            df4=df4.rename(columns={'index':"type"})
+            df7=df4.set_index('type')
+            st.title("")
+            st.title("")
+            st.dataframe(df7)
             df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
             df5["Total"]=df5.sum(axis=1)
-            st.table(df5)
+            
+            st.write(df5)
+    
+            
+            df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+            df4=df4.rename(columns={'Date' : 'Number of shipments'})
+            df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
+            df4=df4.T
+            df4["Total"]=df4.sum(axis=1)
+            df4 = df4.reset_index()
+            
+            df4=df4.rename(columns={'index':"type "})
 
 
 def analysis_page ():
@@ -268,6 +306,7 @@ def analysis_page ():
 
             st.title("important shipments")
             st.write(df3)
+    
 
     st.title("Seasonality")
     col3, col4 = st.columns([1,2])
