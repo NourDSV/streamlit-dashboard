@@ -237,7 +237,7 @@ def summary_page():
             df4=df4.rename(columns={'index':"type"})
             df7=df4.set_index('type')
             st.title("")
-            st.title("")
+            
             st.dataframe(df7)
             df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
             df5["Total"]=df5.sum(axis=1)
