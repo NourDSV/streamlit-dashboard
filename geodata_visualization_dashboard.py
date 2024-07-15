@@ -22,7 +22,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+# from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 
 
