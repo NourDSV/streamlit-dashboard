@@ -22,7 +22,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
-
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 
 
 
@@ -66,6 +66,7 @@ def ldm_calc(data):
 
 # Page for uploading and viewing the Excel file
 def upload_view_page():
+    
     st.title('Upload your data')
     uploaded_file = st.file_uploader("Put your shipment profile here", type=['xlsx'])
     if uploaded_file is not None:
@@ -132,13 +133,14 @@ def summary_page():
             total_items = sum(count.values())
             count_percentage_list = [(item, count, f"{round((count / total_items) * 100, 2)}%") for item, count in count.items()]
             df_bracket = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
-            fig = px.bar(df_bracket, x='bracket', y='Count',color_discrete_sequence=['#002664'], text='percentage')
+            fig = px.bar(df_bracket, x='bracket', y='Count',color='Count', 
+            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='percentage')
             fig.update_layout(
                 title="Brackets",
                 xaxis_title='Bracket',
-                yaxis_title='Count',
-                xaxis=dict(type='category')  
-            )
+                yaxis_title='',
+                xaxis=dict(type='category'))
+            fig.update_coloraxes(showscale=False)
             st.plotly_chart(fig,use_container_width=True)
             
         with col4:
@@ -174,7 +176,7 @@ def summary_page():
             choropleth.add_child(tooltip)
             
             folium_static(m,width=450, height=350)
-        col1,col2,col3,col4 = st.columns([1,1,2.5,2.5])
+        col1,col2,col3,col4 = st.columns([1,1,2,2.5])
         with col1:
             df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df6=df6.rename(columns={'Date' : 'Number of shipments'})
@@ -182,13 +184,15 @@ def summary_page():
             df6=df6.head(10)
             df6=df6.sort_values(by="Number of shipments",ascending= True )
             df6 = df6.reset_index()
-            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="                    Top 10 delivery places",
-            color_discrete_sequence=['#002664'],
+            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="  Top 10 delivery",
+            color='Number of shipments', 
+            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
             orientation='h',
             hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
             fig.update_layout(
                 xaxis_title='Shipments',  
                 yaxis_title='' )
+            fig.update_coloraxes(showscale=False)
 
             st.plotly_chart(fig, use_container_width=True)
 
@@ -199,14 +203,15 @@ def summary_page():
                 df7=df7.head(10)
                 df7=df7.sort_values(by="Number of shipments",ascending= True )
                 df7 = df7.reset_index()
-                fig = px.bar(df7, y='ZC from', x='Number of shipments', title="               Top 10 collection places",
-                color_discrete_sequence=['#002664'],
+                fig = px.bar(df7, y='ZC from', x='Number of shipments', title=" Top 10 collection",
+                color='Number of shipments', 
+                color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
                 orientation='h',
                 hover_data={'kg': True, 'ldm': True})  
                 fig.update_layout(
                 xaxis_title='Shipments',  
                 yaxis_title='' )
-
+                fig.update_coloraxes(showscale=False)
                 st.plotly_chart(fig, use_container_width=True)
         
         with col3:
@@ -219,12 +224,12 @@ def summary_page():
             df3 = df3.reset_index()
             df3["From-to"]=  df3['ZC from'] + ' to ' + df3['ZC to']
             df3.index=df3["From-to"].tolist()
-            fig = px.bar(df3, y='Number of shipments', x='From-to', title="               Top 10 main lines",
-                color_discrete_sequence=['#5D7AB5'])
+            fig = px.bar(df3, y='Number of shipments', x='From-to', title=" Top 10 main lines",color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
+                
             fig.update_layout(
-                xaxis_title='line',  
-                yaxis_title='shipments' )
-
+                xaxis_title='',  
+                yaxis_title='' )
+            fig.update_coloraxes(showscale=False)
             st.plotly_chart(fig, use_container_width=True)
         
         with col4:
@@ -237,7 +242,7 @@ def summary_page():
             df4=df4.rename(columns={'index':"type"})
             df7=df4.set_index('type')
             st.title("")
-            
+            st.title("")
             st.dataframe(df7)
             df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
             df5["Total"]=df5.sum(axis=1)
@@ -520,7 +525,7 @@ def collection():
 
         
 
-# Sidebar for navigation
+st.sidebar.image("1200px-DSV_Logo.svg.png", use_column_width=True)
 st.sidebar.header("Go to")
 
 
