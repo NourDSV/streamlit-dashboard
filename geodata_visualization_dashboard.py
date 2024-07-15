@@ -22,14 +22,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
-# from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-
-
-
-
-
-
-
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
