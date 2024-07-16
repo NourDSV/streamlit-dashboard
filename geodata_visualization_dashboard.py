@@ -23,6 +23,14 @@ from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
 
+
+
+
+
+
+
+
+
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
 levl1=gpd.read_file("NUTS_1_Q1.geojson")
@@ -128,15 +136,18 @@ def summary_page():
             fig = px.bar(df_bracket, x='bracket', y='Count',color='Count', 
             color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='percentage')
             fig.update_layout(
-                title="Brackets",
-                xaxis_title='Bracket',
-                yaxis_title='',
+                title="Shipments per brackets ",
+                xaxis_title='',
+                yaxis_title='Shipments',
                 xaxis=dict(type='category'))
             fig.update_coloraxes(showscale=False)
             st.plotly_chart(fig,use_container_width=True)
             
         with col4:
-             
+            #  removing the decimal after the comma for the column PW
+            data["PW DSV"]=data["PW DSV"].astype(int)
+
+            # creating the folium map
             data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
             data1=pd.merge(data1,zip_code,on='ZC to',how="left")
             data1['count'] = data1.groupby('ZC to')['ZC to'].transform('count')
@@ -144,21 +155,22 @@ def summary_page():
             data1=data1.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
             merge=pd.merge(levl0,data1,right_on="nuts0" ,left_on="ISO2",how="right")
             
-            m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, scroll_wheel_zoom=False )
+            m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, tiles = "CartoDB Positron" )
             colums=["nuts0","PW DSV"]
             key="properties.ISO2"
             st.write("**Countries**")
+
+
             choropleth=folium.Choropleth(
                 geo_data=merge,
                 name="choropleth",
                 data=merge,
                 columns=colums,
                 key_on=key,
-                fill_color='OrRd',
+                fill_color='Blues',
                 fill_opacity=0.7,
-                legend=True,
+                legend=False,
                 highlight=True,
-                
                 ).geojson.add_to(m)
             tooltip = GeoJsonTooltip(
                 fields=colums,
@@ -166,10 +178,43 @@ def summary_page():
                 localize=True
             )
             choropleth.add_child(tooltip)
+
+           
+
             
-            folium_static(m,width=450, height=350)
+            data2=data.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
+            data2=pd.merge(data2,zip_code,right_on='ZC to',left_on="ZC from")
+            data2['count'] = data2.groupby('ZC from')['ZC from'].transform('count')
+            data2["PW DSV"]=(data2["PW DSV"])/data2["count"]
+            data2=data2.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+            merge2=pd.merge(levl0,data2,right_on="nuts0" ,left_on="ISO2",how="right")
+
+
+            for k in range (len(merge2)):
+                lat=merge2["LAT"].iloc[k]
+                lon=merge2["LON"].iloc[k]
+
+                
+                merge2['radius'] = (merge2['PW DSV'] - merge2['PW DSV'].min()) / (merge2['PW DSV'].max() - merge2['PW DSV'].min()) * (20 - 5) + 5
+                folium.CircleMarker(
+                    location=[lat, lon],
+                    radius=merge2['radius'].iloc[k],
+                    color='None',
+                    fill=True,
+                    fill_color="red",
+                    fill_opacity=1,
+                    tooltip=f'Collecting country: {merge2["NAME"].iloc[k]} <br> PayWeight: {merge2["PW DSV"].iloc[k]}'
+                ).add_to(m)
+          
+            
+
+            folium_static(m,width=450, height=330)
+            st.write("""
+            <span style='font-size: small;'>🔴 : Collecting countries &nbsp;&nbsp; 🟦 : Delivered countries</span>
+            """, unsafe_allow_html=True)
         col1,col2,col3,col4 = st.columns([1,1,2,2.5])
-        with col1:
+        with col2:
+
             df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df6=df6.rename(columns={'Date' : 'Number of shipments'})
             df6=df6.sort_values(by="Number of shipments",ascending= False )
@@ -188,7 +233,7 @@ def summary_page():
 
             st.plotly_chart(fig, use_container_width=True)
 
-        with col2:
+        with col1:
                 df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
                 df7=df7.rename(columns={'Date' : 'Number of shipments'})
                 df7=df7.sort_values(by="Number of shipments",ascending= False )
@@ -216,15 +261,30 @@ def summary_page():
             df3 = df3.reset_index()
             df3["From-to"]=  df3['ZC from'] + ' to ' + df3['ZC to']
             df3.index=df3["From-to"].tolist()
-            fig = px.bar(df3, y='Number of shipments', x='From-to', title=" Top 10 main lines",color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
+            fig = px.bar(df3, y='Number of shipments', x='From-to', title=" Top 10 main lanes",color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
                 
             fig.update_layout(
                 xaxis_title='',  
                 yaxis_title='' )
             fig.update_coloraxes(showscale=False)
             st.plotly_chart(fig, use_container_width=True)
-        
         with col4:
+            data['Month'] = data['Date'].dt.to_period('M')
+            df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
+            df4=df4.rename(columns={'Date': 'Shipments'})
+            df4['Month'] = df4['Month'].astype(str)
+            fig_ship = px.line(df4, x='Month', y='Shipments', markers=True , line_shape='spline')
+            fig_ship.update_layout(
+                title='Seasonality', 
+                xaxis_title='',
+                yaxis_title='Shipments',
+                xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month']})
+            st.plotly_chart(fig_ship,use_container_width=True)
+
+
+        container = st.container(border=True)
+
+        with container:
             df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
             df4=df4.rename(columns={'Date' : 'Number of shipments'})
             df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
@@ -234,7 +294,6 @@ def summary_page():
             df4=df4.rename(columns={'index':"type"})
             df7=df4.set_index('type')
             st.title("")
-            st.title("")
             st.dataframe(df7)
             df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
             df5["Total"]=df5.sum(axis=1)
@@ -242,14 +301,6 @@ def summary_page():
             st.write(df5)
     
             
-            df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-            df4=df4.rename(columns={'Date' : 'Number of shipments'})
-            df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
-            df4=df4.T
-            df4["Total"]=df4.sum(axis=1)
-            df4 = df4.reset_index()
-            
-            df4=df4.rename(columns={'index':"type "})
 
 
 def analysis_page ():
