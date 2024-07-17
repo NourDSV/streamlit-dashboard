@@ -301,15 +301,15 @@ def summary_page():
             df4 = df4.reset_index()
             df4=df4.rename(columns={'index':"Type"})
             df7=df4.set_index('Type')
-            locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
-            df7=df7.applymap(lambda x: locale.format_string("%d", x, grouping=True) if isinstance(x, (int, float)) else x)
+            # locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+            # df7=df7.applymap(lambda x: locale.format_string("%d", x, grouping=True) if isinstance(x, (int, float)) else x)
             st.dataframe(df7)
         with col2:
             df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
             df5["Total"]=df5.sum(axis=1)
             df5= df5.fillna(0)
-            locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
-            df5=df5.applymap(lambda x: locale.format_string("%d", x, grouping=True) if isinstance(x, (int, float)) else x)
+            # locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+            # df5=df5.applymap(lambda x: locale.format_string("%d", x, grouping=True) if isinstance(x, (int, float)) else x)
             st.write(df5)
         with col3:
             with st.expander("Read summary"):
