@@ -9,4 +9,3 @@ branca
 plotly
 streamlit-folium
 openpyxl
-locale
