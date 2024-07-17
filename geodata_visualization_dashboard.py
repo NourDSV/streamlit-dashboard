@@ -58,7 +58,7 @@ def load_data():
         data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
         data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
     
-    
+    data["PW DSV"]=data["Payweight 330/1750"]
     return data
 
 def ldm_calc(data):
@@ -91,7 +91,7 @@ def summary_page():
         
         st.title("Shipment summary")
         data = load_data()
-        data["PW DSV"]=data["Payweight 330/1750"]
+        
 
         dom=data["ZC from"][data["Way"]=="Dom"].count()
         exp=data["ZC from"][data["Way"]=="Exp"].count()
