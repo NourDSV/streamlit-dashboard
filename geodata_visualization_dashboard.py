@@ -22,7 +22,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
-
+import locale
 
 
 
@@ -58,6 +58,7 @@ def load_data():
         data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
         data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
     
+    
     return data
 
 def ldm_calc(data):
@@ -90,14 +91,15 @@ def summary_page():
         
         st.title("Shipment summary")
         data = load_data()
+        data["PW DSV"]=data["Payweight 330/1750"]
 
         dom=data["ZC from"][data["Way"]=="Dom"].count()
         exp=data["ZC from"][data["Way"]=="Exp"].count()
         imp=data["ZC from"][data["Way"]=="Imp"].count()
-        trans=data["ZC from"][data["Way"]=="Trans"].count()
+        X_trade=data["ZC from"][data["Way"]=="X-trade"].count()
 
-        values_way=[dom,exp,imp,trans]
-        labels_way=["Dom","Exp","Imp","Trans"]
+        values_way=[dom,exp,imp,X_trade]
+        labels_way=["Dom","Exp","Imp","X_trade"]
 
         col1, col2,col3,col4 = st.columns([1.3,1.3,2,2])
         with col1:
@@ -115,15 +117,17 @@ def summary_page():
             fig.add_trace(go.Pie(labels=labels, values=sh_values, name="nbr of shipment"),1,1)
             fig.update_traces(hole=.5,marker=dict(colors=colors))
             fig.update_layout(
-            title_text="Product",
+            # title_text="Product",
             annotations=[dict(text='Shipments', x=0.27, y=0.5, font_size=20, showarrow=False)])
+            st.write("<h5><b>Product</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig,use_container_width=True)
         with col2:
             fig = make_subplots(rows=1, cols=1, specs=[[{'type':'domain'}]])
             fig.add_trace(go.Pie(labels=labels_way, values=values_way, name="Way"),1,1)
             fig.update_traces(hole=.5,marker=dict(colors=['#002664','#5D7AB5','#A9BCE2','#000000']))
-            fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)],
-            title_text="Type")
+            fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)])
+            # title_text="Type"
+            st.write("<h5><b>Type</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig,use_container_width=True)
         
         with col3:
@@ -136,11 +140,12 @@ def summary_page():
             fig = px.bar(df_bracket, x='bracket', y='Count',color='Count', 
             color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='percentage')
             fig.update_layout(
-                title="Shipments per brackets ",
+                # title="Shipments per brackets ",
                 xaxis_title='',
                 yaxis_title='Shipments',
                 xaxis=dict(type='category'))
             fig.update_coloraxes(showscale=False)
+            st.write("<h5><b>Shipments per brackets</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig,use_container_width=True)
             
         with col4:
@@ -158,7 +163,8 @@ def summary_page():
             m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, tiles = "CartoDB Positron" )
             colums=["nuts0","PW DSV"]
             key="properties.ISO2"
-            st.write("**Countries**")
+            
+            st.write("<h5><b>Countries</b></h5>", unsafe_allow_html=True)
 
 
             choropleth=folium.Choropleth(
@@ -208,9 +214,9 @@ def summary_page():
           
             
 
-            folium_static(m,width=450, height=330)
+            folium_static(m,width=450, height=325)
             st.write("""
-            <span style='font-size: small;'>🔴 : Collecting countries &nbsp;&nbsp; 🟦 : Delivered countries</span>
+            <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🟦  Delivered countries</span>
             """, unsafe_allow_html=True)
         col1,col2,col3,col4 = st.columns([1,1,2,2.5])
         with col2:
@@ -221,7 +227,7 @@ def summary_page():
             df6=df6.head(10)
             df6=df6.sort_values(by="Number of shipments",ascending= True )
             df6 = df6.reset_index()
-            fig = px.bar(df6, y='ZC to', x='Number of shipments', title="  Top 10 delivery",
+            fig = px.bar(df6, y='ZC to', x='Number of shipments', 
             color='Number of shipments', 
             color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
             orientation='h',
@@ -230,7 +236,7 @@ def summary_page():
                 xaxis_title='Shipments',  
                 yaxis_title='' )
             fig.update_coloraxes(showscale=False)
-
+            st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
 
         with col1:
@@ -240,7 +246,7 @@ def summary_page():
                 df7=df7.head(10)
                 df7=df7.sort_values(by="Number of shipments",ascending= True )
                 df7 = df7.reset_index()
-                fig = px.bar(df7, y='ZC from', x='Number of shipments', title=" Top 10 collection",
+                fig = px.bar(df7, y='ZC from', x='Number of shipments', 
                 color='Number of shipments', 
                 color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
                 orientation='h',
@@ -249,6 +255,7 @@ def summary_page():
                 xaxis_title='Shipments',  
                 yaxis_title='' )
                 fig.update_coloraxes(showscale=False)
+                st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig, use_container_width=True)
         
         with col3:
@@ -261,12 +268,13 @@ def summary_page():
             df3 = df3.reset_index()
             df3["From-to"]=  df3['ZC from'] + ' to ' + df3['ZC to']
             df3.index=df3["From-to"].tolist()
-            fig = px.bar(df3, y='Number of shipments', x='From-to', title=" Top 10 main lanes",color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
+            fig = px.bar(df3, y='Number of shipments', x='From-to',color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
                 
             fig.update_layout(
                 xaxis_title='',  
                 yaxis_title='' )
             fig.update_coloraxes(showscale=False)
+            st.write("<h5><b>Top 10 main lanes</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
         with col4:
             data['Month'] = data['Date'].dt.to_period('M')
@@ -274,31 +282,38 @@ def summary_page():
             df4=df4.rename(columns={'Date': 'Shipments'})
             df4['Month'] = df4['Month'].astype(str)
             fig_ship = px.line(df4, x='Month', y='Shipments', markers=True , line_shape='spline')
-            fig_ship.update_layout(
-                title='Seasonality', 
+            fig_ship.update_layout( 
                 xaxis_title='',
                 yaxis_title='Shipments',
                 xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month']})
+            st.write("<h5><b>Seasonality</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig_ship,use_container_width=True)
 
 
-        container = st.container(border=True)
+        col1,col2,col3=st.columns([1.5,1,1.5])
 
-        with container:
+        with col1:
             df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-            df4=df4.rename(columns={'Date' : 'Number of shipments'})
+            df4=df4.rename(columns={'Date' : 'Shipments'})
             df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
             df4=df4.T
             df4["Total"]=df4.sum(axis=1)
             df4 = df4.reset_index()
-            df4=df4.rename(columns={'index':"type"})
-            df7=df4.set_index('type')
-            st.title("")
+            df4=df4.rename(columns={'index':"Type"})
+            df7=df4.set_index('Type')
+            locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+            df7=df7.applymap(lambda x: locale.format_string("%d", x, grouping=True) if isinstance(x, (int, float)) else x)
             st.dataframe(df7)
+        with col2:
             df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
             df5["Total"]=df5.sum(axis=1)
-            
+            df5= df5.fillna(0)
+            locale.setlocale(locale.LC_ALL, 'fr_FR.UTF-8')
+            df5=df5.applymap(lambda x: locale.format_string("%d", x, grouping=True) if isinstance(x, (int, float)) else x)
             st.write(df5)
+        with col3:
+            with st.expander("Read summary"):
+                 st.write("This shipment has bla bla....")
     
             
 
