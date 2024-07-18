@@ -22,6 +22,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import base64
+from pptx import Presentation
+from pptx.util import Inches
+import plotly.io as pio
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -78,6 +81,31 @@ def upload_view_page():
                 else:
                     st.write("error can't calculate ldm because kg does not existe ")
 
+def generate_powerpoint():
+    prs = Presentation()
+    figures=[
+         {"fig":"product.png"},
+         {"fig":"type.png"},
+         {"fig":"bracket.png"},
+         
+         {"fig":"top_collection.png"},
+         {"fig":"top_delivery.png"},
+         {"fig":"top_lines.png"},
+         {"fig":"seasonality.png"}]
+    for figure_data in figures:
+    
+        # Add a slide with the Plotly figure
+        slide_layout = prs.slide_layouts[5]  # Use a blank slide layout
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Add the saved plot image to the slide
+        left = Inches(1)
+        top = Inches(1)
+        pic = slide.shapes.add_picture(figure_data["fig"], left, top, width=Inches(6), height=Inches(4))
+    
+    # Save the PowerPoint file
+    prs.save("output.pptx")
+
 
 def summary_page():
         
@@ -109,18 +137,18 @@ def summary_page():
             fig.add_trace(go.Pie(labels=labels, values=sh_values, name="nbr of shipment"),1,1)
             fig.update_traces(hole=.5,marker=dict(colors=colors))
             fig.update_layout(
-            # title_text="Product",
             annotations=[dict(text='Shipments', x=0.27, y=0.5, font_size=20, showarrow=False)])
             st.write("<h5><b>Product</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig,use_container_width=True)
+            pio.write_image(fig,"product.png")
         with col2:
             fig = make_subplots(rows=1, cols=1, specs=[[{'type':'domain'}]])
             fig.add_trace(go.Pie(labels=labels_way, values=values_way, name="Way"),1,1)
             fig.update_traces(hole=.5,marker=dict(colors=['#002664','#5D7AB5','#A9BCE2','#000000']))
             fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)])
-            # title_text="Type"
             st.write("<h5><b>Type</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig,use_container_width=True)
+            pio.write_image(fig,"type.png")
         
         with col3:
             
@@ -139,6 +167,7 @@ def summary_page():
             fig.update_coloraxes(showscale=False)
             st.write("<h5><b>Shipments per brackets</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig,use_container_width=True)
+            pio.write_image(fig,"bracket.png")
             
         with col4:
             #  removing the decimal after the comma for the column PW
@@ -210,6 +239,7 @@ def summary_page():
             st.write("""
             <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🟦  Delivered countries</span>
             """, unsafe_allow_html=True)
+            m.save("map.png")
         col1,col2,col3,col4 = st.columns([1,1,2,2.5])
         with col2:
 
@@ -230,6 +260,7 @@ def summary_page():
             fig.update_coloraxes(showscale=False)
             st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
+            pio.write_image(fig,"top_delivery.png")
 
         with col1:
                 df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
@@ -249,6 +280,7 @@ def summary_page():
                 fig.update_coloraxes(showscale=False)
                 st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig, use_container_width=True)
+                pio.write_image(fig,"top_collection.png")
         
         with col3:
             df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
@@ -268,6 +300,7 @@ def summary_page():
             fig.update_coloraxes(showscale=False)
             st.write("<h5><b>Top 10 main lanes</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True)
+            pio.write_image(fig,"top_lines.png")
         with col4:
             data['Month'] = data['Date'].dt.to_period('M')
             df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
@@ -280,6 +313,7 @@ def summary_page():
                 xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month'],"showgrid":True})
             st.write("<h5><b>Seasonality</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig_ship,use_container_width=True)
+            pio.write_image(fig,"seasonality.png")
 
 
         col1,col2,col3=st.columns([1.5,1,1.5])
@@ -305,10 +339,20 @@ def summary_page():
             st.write(df5)
         with col3:
             st.write("Summary")
-            st.write("This shipment bla bla....")
-    
-            
+            st.write("This shipment has bla bla....")
 
+        if st.button("Create PowerPoint presenatation"):
+            generate_powerpoint()
+            st.success("PowerPoint file generated successfully!")
+            with open("output.pptx", "rb") as file:
+                btn = st.download_button(
+                    label="Click here to download PowerPoint",
+                    data=file,
+                    file_name="PowerPoint Presenation.pptx"
+                )
+
+
+            
 
 
 def analysis_page ():
