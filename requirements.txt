@@ -9,4 +9,5 @@ branca
 plotly
 streamlit-folium
 openpyxl
-Presentation
+pptx
+plotly.io
