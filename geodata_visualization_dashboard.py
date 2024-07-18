@@ -81,275 +81,294 @@ def upload_view_page():
                 else:
                     st.write("error can't calculate ldm because kg does not existe ")
 
-def generate_powerpoint():
-    prs = Presentation()
-    figures=[
-         {"fig":"product.png"},
-         {"fig":"type.png"},
-         {"fig":"bracket.png"},
-         
-         {"fig":"top_collection.png"},
-         {"fig":"top_delivery.png"},
-         {"fig":"top_lines.png"},
-         {"fig":"seasonality.png"}]
-    for figure_data in figures:
+# def generate_powerpoint():
+#     prs = Presentation()
+#     figures=[
+#          {"fig":"product.png"},
+#          {"fig":"type.png"},
+#          {"fig":"bracket.png"},
+#          {"fig":"top_collection.png"},
+#          {"fig":"top_delivery.png"},
+#          {"fig":"top_lines.png"},
+#          {"fig":"seasonality.png"},]
+
     
-        # Add a slide with the Plotly figure
-        slide_layout = prs.slide_layouts[5]  # Use a blank slide layout
-        slide = prs.slides.add_slide(slide_layout)
+
+#         slide_layout = prs.slide_layouts[5]  # Use a blank slide layout
+#         slide = prs.slides.add_slide(slide_layout)
         
-        # Add the saved plot image to the slide
-        left = Inches(1)
-        top = Inches(1)
-        pic = slide.shapes.add_picture(figure_data["fig"], left, top, width=Inches(6), height=Inches(4))
+
+#         left = Inches(1)
+#         top = Inches(1)
+#         pic = slide.shapes.add_picture(figure_data["fig"], left, top, width=Inches(6), height=Inches(4))
     
-    # Save the PowerPoint file
-    prs.save("output.pptx")
+
+#     prs.save("output.pptx")
 
 
 def summary_page():
         
         st.title("Shipment summary")
         data = load_data()
-        
-
-        dom=data["ZC from"][data["Way"]=="Dom"].count()
-        exp=data["ZC from"][data["Way"]=="Exp"].count()
-        imp=data["ZC from"][data["Way"]=="Imp"].count()
-        X_trade=data["ZC from"][data["Way"]=="X-trade"].count()
-
-        values_way=[dom,exp,imp,X_trade]
-        labels_way=["Dom","Exp","Imp","X_trade"]
-
-        col1, col2,col3,col4 = st.columns([1.3,1.3,2,2])
+        col1,col2=st.columns([1,8])
         with col1:
-            produit=data["Product"].unique().tolist()
-            labels = []
-            sh_values = []
-            dict_product={}
-            for k in produit:
-                summ=(data["Product"]==k).sum()
-                dict_product[f'nbr_{k}']=summ
-                sh_values.append(summ)
-                labels.append(k)
-            colors =['#002664','#5D7AB5','#A9BCE2']
-            fig = make_subplots(rows=1, specs=[[{'type':'domain'}]])
-            fig.add_trace(go.Pie(labels=labels, values=sh_values, name="nbr of shipment"),1,1)
-            fig.update_traces(hole=.5,marker=dict(colors=colors))
-            fig.update_layout(
-            annotations=[dict(text='Shipments', x=0.27, y=0.5, font_size=20, showarrow=False)])
-            st.write("<h5><b>Product</b></h5>", unsafe_allow_html=True)
-            st.plotly_chart(fig,use_container_width=True)
-            # pio.write_image(fig,"product.png")
-        with col2:
-            fig = make_subplots(rows=1, cols=1, specs=[[{'type':'domain'}]])
-            fig.add_trace(go.Pie(labels=labels_way, values=values_way, name="Way"),1,1)
-            fig.update_traces(hole=.5,marker=dict(colors=['#002664','#5D7AB5','#A9BCE2','#000000']))
-            fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)])
-            st.write("<h5><b>Type</b></h5>", unsafe_allow_html=True)
-            st.plotly_chart(fig,use_container_width=True)
-            # pio.write_image(fig,"type.png")
-        
-        with col3:
+            st.write("Filters")
+            selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
+            selected_cntry_from = st.multiselect('Select Country From', options=data['Cntry from'].unique())
+            selected_zc_from = st.multiselect('Select Zip Code From', options=data['ZC from'].unique())
+            selected_cntry_to = st.multiselect('Select Country To', options=data['Cntry to'].unique())
+            selected_zc_to = st.multiselect('Select Zip Code To', options=data['ZC to'].unique())
+            selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
+            selected_way = st.multiselect('Select way', options=data['Way'].unique())
             
-            my_list = sorted(data["Bracket"].tolist())
-            count = Counter(my_list)
-            total_items = sum(count.values())
-            count_percentage_list = [(item, count, f"{round((count / total_items) * 100, 2)}%") for item, count in count.items()]
-            df_bracket = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
-            fig = px.bar(df_bracket, x='bracket', y='Count',color='Count', 
-            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='percentage')
-            fig.update_layout(
-                # title="Shipments per brackets ",
-                xaxis_title='',
-                yaxis_title='Shipments',
-                xaxis=dict(type='category'))
-            fig.update_coloraxes(showscale=False)
-            st.write("<h5><b>Shipments per brackets</b></h5>", unsafe_allow_html=True)
-            st.plotly_chart(fig,use_container_width=True)
-            # pio.write_image(fig,"bracket.png")
-            
-        with col4:
-            #  removing the decimal after the comma for the column PW
-            data["PW DSV"]=data["PW DSV"].astype(int)
-
-            # creating the folium map
-            data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
-            data1=pd.merge(data1,zip_code,on='ZC to',how="left")
-            data1['count'] = data1.groupby('ZC to')['ZC to'].transform('count')
-            data1["PW DSV"]=(data1["PW DSV"])/data1["count"]
-            data1=data1.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
-            merge=pd.merge(levl0,data1,right_on="nuts0" ,left_on="ISO2",how="right")
-            
-            m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, tiles = "CartoDB Positron" )
-            colums=["nuts0","PW DSV"]
-            key="properties.ISO2"
-            
-            st.write("<h5><b>Countries</b></h5>", unsafe_allow_html=True)
-
-
-            choropleth=folium.Choropleth(
-                geo_data=merge,
-                name="choropleth",
-                data=merge,
-                columns=colums,
-                key_on=key,
-                fill_color='Blues',
-                fill_opacity=0.7,
-                legend=False,
-                highlight=True,
-                ).geojson.add_to(m)
-            tooltip = GeoJsonTooltip(
-                fields=colums,
-                aliases=["Delivery country", "Total pay weight"],
-                localize=True
-            )
-            choropleth.add_child(tooltip)
-
            
+            data = data[
+            (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+            (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+            (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+            (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+            (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+            (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+            (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+        
+        with col2:
+            dom=data["ZC from"][data["Way"]=="Dom"].count()
+            exp=data["ZC from"][data["Way"]=="Exp"].count()
+            imp=data["ZC from"][data["Way"]=="Imp"].count()
+            X_trade=data["ZC from"][data["Way"]=="X-trade"].count()
+
+            values_way=[dom,exp,imp,X_trade]
+            labels_way=["Dom","Exp","Imp","X_trade"]
+
+            col1, col2,col3,col4 = st.columns([1.3,1.3,2,2])
+            with col1:
+                produit=data["Product"].unique().tolist()
+                labels = []
+                sh_values = []
+                dict_product={}
+                for k in produit:
+                    summ=(data["Product"]==k).sum()
+                    dict_product[f'nbr_{k}']=summ
+                    sh_values.append(summ)
+                    labels.append(k)
+                colors =['#002664','#5D7AB5','#A9BCE2']
+                fig = make_subplots(rows=1, specs=[[{'type':'domain'}]])
+                fig.add_trace(go.Pie(labels=labels, values=sh_values, name="nbr of shipment"),1,1)
+                fig.update_traces(hole=.5,marker=dict(colors=colors))
+                fig.update_layout(
+                annotations=[dict(text='Shipments', x=0.27, y=0.5, font_size=20, showarrow=False)])
+                st.write("<h5><b>Product</b></h5>", unsafe_allow_html=True)
+                st.plotly_chart(fig,use_container_width=True)
+                fig.write_image("product.png")
+            with col2:
+                fig = make_subplots(rows=1, cols=1, specs=[[{'type':'domain'}]])
+                fig.add_trace(go.Pie(labels=labels_way, values=values_way, name="Way"),1,1)
+                fig.update_traces(hole=.5,marker=dict(colors=['#002664','#5D7AB5','#A9BCE2','#000000']))
+                fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)])
+                st.write("<h5><b>Type</b></h5>", unsafe_allow_html=True)
+                st.plotly_chart(fig,use_container_width=True)
+                pio.write_image(fig,"type.png")
+            
+            with col3:
+                
+                my_list = sorted(data["Bracket"].tolist())
+                count = Counter(my_list)
+                total_items = sum(count.values())
+                count_percentage_list = [(item, count, f"{round((count / total_items) * 100, 2)}%") for item, count in count.items()]
+                df_bracket = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
+                fig = px.bar(df_bracket, x='bracket', y='Count',color='Count', 
+                color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='percentage')
+                fig.update_layout(
+                    # title="Shipments per brackets ",
+                    xaxis_title='',
+                    yaxis_title='Shipments',
+                    xaxis=dict(type='category'))
+                fig.update_coloraxes(showscale=False)
+                st.write("<h5><b>Shipments per brackets</b></h5>", unsafe_allow_html=True)
+                st.plotly_chart(fig,use_container_width=True)
+                pio.write_image(fig,"bracket.png")
+                
+            with col4:
+                #  removing the decimal after the comma for the column PW
+                data["PW DSV"]=data["PW DSV"].astype(int)
+
+                # creating the folium map
+                data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
+                data1=pd.merge(data1,zip_code,on='ZC to',how="left")
+                data1['count'] = data1.groupby('ZC to')['ZC to'].transform('count')
+                data1["PW DSV"]=(data1["PW DSV"])/data1["count"]
+                data1=data1.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+                merge=pd.merge(levl0,data1,right_on="nuts0" ,left_on="ISO2",how="right")
+                
+                m = folium.Map(location=[55.6761, 12.5683], zoom_start=2.5, zoom_control=False, tiles = "CartoDB Positron" )
+                colums=["nuts0","PW DSV"]
+                key="properties.ISO2"
+                
+                st.write("<h5><b>Countries</b></h5>", unsafe_allow_html=True)
+
+
+                choropleth=folium.Choropleth(
+                    geo_data=merge,
+                    name="choropleth",
+                    data=merge,
+                    columns=colums,
+                    key_on=key,
+                    fill_color='Blues',
+                    fill_opacity=0.7,
+                    legend=False,
+                    highlight=True,
+                    ).geojson.add_to(m)
+                tooltip = GeoJsonTooltip(
+                    fields=colums,
+                    aliases=["Delivery country", "Total pay weight"],
+                    localize=True
+                )
+                choropleth.add_child(tooltip)
 
             
-            data2=data.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
-            data2=pd.merge(data2,zip_code,right_on='ZC to',left_on="ZC from")
-            data2['count'] = data2.groupby('ZC from')['ZC from'].transform('count')
-            data2["PW DSV"]=(data2["PW DSV"])/data2["count"]
-            data2=data2.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
-            merge2=pd.merge(levl0,data2,right_on="nuts0" ,left_on="ISO2",how="right")
-
-
-            for k in range (len(merge2)):
-                lat=merge2["LAT"].iloc[k]
-                lon=merge2["LON"].iloc[k]
 
                 
-                merge2['radius'] = (merge2['PW DSV'] - merge2['PW DSV'].min()) / (merge2['PW DSV'].max() - merge2['PW DSV'].min()) * (20 - 5) + 5
-                folium.CircleMarker(
-                    location=[lat, lon],
-                    radius=merge2['radius'].iloc[k],
-                    color='None',
-                    fill=True,
-                    fill_color="red",
-                    fill_opacity=1,
-                    tooltip=f'Collecting country: {merge2["NAME"].iloc[k]} <br> PayWeight: {merge2["PW DSV"].iloc[k]}'
-                ).add_to(m)
-          
+                data2=data.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
+                data2=pd.merge(data2,zip_code,right_on='ZC to',left_on="ZC from")
+                data2['count'] = data2.groupby('ZC from')['ZC from'].transform('count')
+                data2["PW DSV"]=(data2["PW DSV"])/data2["count"]
+                data2=data2.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+                merge2=pd.merge(levl0,data2,right_on="nuts0" ,left_on="ISO2",how="right")
+
+
+                for k in range (len(merge2)):
+                    lat=merge2["LAT"].iloc[k]
+                    lon=merge2["LON"].iloc[k]
+
+                    
+                    merge2['radius'] = (merge2['PW DSV'] - merge2['PW DSV'].min()) / (merge2['PW DSV'].max() - merge2['PW DSV'].min()) * (20 - 5) + 5
+                    folium.CircleMarker(
+                        location=[lat, lon],
+                        radius=merge2['radius'].iloc[k],
+                        color='None',
+                        fill=True,
+                        fill_color="red",
+                        fill_opacity=1,
+                        tooltip=f'Collecting country: {merge2["NAME"].iloc[k]} <br> PayWeight: {merge2["PW DSV"].iloc[k]}'
+                    ).add_to(m)
             
+                
 
-            folium_static(m,width=450, height=325)
-            st.write("""
-            <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🟦  Delivered countries</span>
-            """, unsafe_allow_html=True)
-            # m.save("map.png")
-        col1,col2,col3,col4 = st.columns([1,1,2,2.5])
-        with col2:
+                folium_static(m,width=450, height=325)
+                st.write("""
+                <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🟦  Delivered countries</span>
+                """, unsafe_allow_html=True)
+                m.save("map.png")
+            col1,col2,col3,col4 = st.columns([1,1,2,2.5])
+            with col2:
 
-            df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-            df6=df6.rename(columns={'Date' : 'Number of shipments'})
-            df6=df6.sort_values(by="Number of shipments",ascending= False )
-            df6=df6.head(10)
-            df6=df6.sort_values(by="Number of shipments",ascending= True )
-            df6 = df6.reset_index()
-            fig = px.bar(df6, y='ZC to', x='Number of shipments', 
-            color='Number of shipments', 
-            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-            orientation='h',
-            hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
-            fig.update_layout(
-                xaxis_title='Shipments',  
-                yaxis_title='' )
-            fig.update_coloraxes(showscale=False)
-            st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
-            st.plotly_chart(fig, use_container_width=True)
-            # pio.write_image(fig,"top_delivery.png")
-
-        with col1:
-                df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                df7=df7.rename(columns={'Date' : 'Number of shipments'})
-                df7=df7.sort_values(by="Number of shipments",ascending= False )
-                df7=df7.head(10)
-                df7=df7.sort_values(by="Number of shipments",ascending= True )
-                df7 = df7.reset_index()
-                fig = px.bar(df7, y='ZC from', x='Number of shipments', 
+                df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df6=df6.rename(columns={'Date' : 'Number of shipments'})
+                df6=df6.sort_values(by="Number of shipments",ascending= False )
+                df6=df6.head(10)
+                df6=df6.sort_values(by="Number of shipments",ascending= True )
+                df6 = df6.reset_index()
+                fig = px.bar(df6, y='ZC to', x='Number of shipments', 
                 color='Number of shipments', 
                 color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
                 orientation='h',
-                hover_data={'kg': True, 'ldm': True})  
+                hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
                 fig.update_layout(
-                xaxis_title='Shipments',  
-                yaxis_title='' )
+                    xaxis_title='Shipments',  
+                    yaxis_title='' )
                 fig.update_coloraxes(showscale=False)
-                st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
+                st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig, use_container_width=True)
-                # pio.write_image(fig,"top_collection.png")
-        
-        with col3:
-            df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-            df3=df3.rename(columns={'Date' : 'Number of shipments'})
-            df3=df3.sort_values(by="Number of shipments",ascending=False )
-            # df3["%"]=df3["PW DSV"]/(sum(df3["PW DSV"]))*100
-            # df3["cum"]=df3["%"].cumsum()
-            df3=df3.head(10)
-            df3 = df3.reset_index()
-            df3["From-to"]=  df3['ZC from'] + ' - ' + df3['ZC to']
-            df3.index=df3["From-to"].tolist()
-            fig = px.bar(df3, y='Number of shipments', x='From-to',color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
+                pio.write_image(fig,"top_delivery.png")
+
+            with col1:
+                    df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                    df7=df7.rename(columns={'Date' : 'Number of shipments'})
+                    df7=df7.sort_values(by="Number of shipments",ascending= False )
+                    df7=df7.head(10)
+                    df7=df7.sort_values(by="Number of shipments",ascending= True )
+                    df7 = df7.reset_index()
+                    fig = px.bar(df7, y='ZC from', x='Number of shipments', 
+                    color='Number of shipments', 
+                    color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+                    orientation='h',
+                    hover_data={'kg': True, 'ldm': True})  
+                    fig.update_layout(
+                    xaxis_title='Shipments',  
+                    yaxis_title='' )
+                    fig.update_coloraxes(showscale=False)
+                    st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
+                    st.plotly_chart(fig, use_container_width=True)
+                    pio.write_image(fig,"top_collection.png")
+            
+            with col3:
+                df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df3=df3.rename(columns={'Date' : 'Number of shipments'})
+                df3=df3.sort_values(by="Number of shipments",ascending=False )
+                # df3["%"]=df3["PW DSV"]/(sum(df3["PW DSV"]))*100
+                # df3["cum"]=df3["%"].cumsum()
+                df3=df3.head(10)
+                df3 = df3.reset_index()
+                df3["From-to"]=  df3['ZC from'] + ' - ' + df3['ZC to']
+                df3.index=df3["From-to"].tolist()
+                fig = px.bar(df3, y='Number of shipments', x='From-to',color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
+                    
+                fig.update_layout(
+                    xaxis_title='',  
+                    yaxis_title='' )
+                fig.update_coloraxes(showscale=False)
+                st.write("<h5><b>Top 10 main lanes</b></h5>", unsafe_allow_html=True)
+                st.plotly_chart(fig, use_container_width=True)
+                pio.write_image(fig,"top_lines.png")
+            with col4:
+                data['Month'] = data['Date'].dt.to_period('M')
+                df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
+                df4=df4.rename(columns={'Date': 'Shipments'})
+                df4['Month'] = df4['Month'].astype(str)
+                fig_ship = px.line(df4, x='Month', y='Shipments', markers=True , line_shape='spline')
+                fig_ship.update_layout( 
+                    xaxis_title='',
+                    yaxis_title='Shipments',
+                    xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month'],"showgrid":True})
+                st.write("<h5><b>Seasonality</b></h5>", unsafe_allow_html=True)
+                st.plotly_chart(fig_ship,use_container_width=True)
+                pio.write_image(fig,"seasonality.png")
+
+
+            col1,col2,col3=st.columns([1.5,1,1.5])
+
+            with col1:
+                df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df4=df4.rename(columns={'Date' : 'Shipments'})
+                df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
+                df4=df4.T
+                df4["Total"]=df4.sum(axis=1)
+                df4 = df4.reset_index()
+                df4=df4.rename(columns={'index':"Type"})
+                df7=df4.set_index('Type')
                 
-            fig.update_layout(
-                xaxis_title='',  
-                yaxis_title='' )
-            fig.update_coloraxes(showscale=False)
-            st.write("<h5><b>Top 10 main lanes</b></h5>", unsafe_allow_html=True)
-            st.plotly_chart(fig, use_container_width=True)
-            # pio.write_image(fig,"top_lines.png")
-        with col4:
-            data['Month'] = data['Date'].dt.to_period('M')
-            df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
-            df4=df4.rename(columns={'Date': 'Shipments'})
-            df4['Month'] = df4['Month'].astype(str)
-            fig_ship = px.line(df4, x='Month', y='Shipments', markers=True , line_shape='spline')
-            fig_ship.update_layout( 
-                xaxis_title='',
-                yaxis_title='Shipments',
-                xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month'],"showgrid":True})
-            st.write("<h5><b>Seasonality</b></h5>", unsafe_allow_html=True)
-            st.plotly_chart(fig_ship,use_container_width=True)
-            # pio.write_image(fig,"seasonality.png")
+                df7=df7.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
+                st.dataframe(df7)
+            with col2:
+                df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
+                df5["Total"]=df5.sum(axis=1)
+                df5= df5.fillna(0)
+                
+                df5=df5.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
+                st.write(df5)
+            with col3:
+                st.write("Summary")
+                st.write("This shipment has bla bla....")
 
-
-        col1,col2,col3=st.columns([1.5,1,1.5])
-
-        with col1:
-            df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-            df4=df4.rename(columns={'Date' : 'Shipments'})
-            df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
-            df4=df4.T
-            df4["Total"]=df4.sum(axis=1)
-            df4 = df4.reset_index()
-            df4=df4.rename(columns={'index':"Type"})
-            df7=df4.set_index('Type')
-            
-            df7=df7.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
-            st.dataframe(df7)
-        with col2:
-            df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
-            df5["Total"]=df5.sum(axis=1)
-            df5= df5.fillna(0)
-            
-            df5=df5.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
-            st.write(df5)
-        with col3:
-            st.write("Summary")
-            st.write("This shipment has bla bla....")
-
-        if st.button("Create PowerPoint presenatation"):
-            generate_powerpoint()
-            st.success("PowerPoint file generated successfully!")
-            with open("output.pptx", "rb") as file:
-                btn = st.download_button(
-                    label="Click here to download PowerPoint",
-                    data=file,
-                    file_name="PowerPoint Presenation.pptx"
-                )
+            # if st.button("Create PowerPoint presenatation"):
+            #     generate_powerpoint()
+            #     st.success("PowerPoint file generated successfully!")
+            #     with open("output.pptx", "rb") as file:
+            #         btn = st.download_button(
+            #             label="Click here to download PowerPoint",
+            #             data=file,
+            #             file_name="PowerPoint Presenation.pptx"
+            #         )
 
 
             
