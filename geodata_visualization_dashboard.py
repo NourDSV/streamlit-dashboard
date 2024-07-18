@@ -258,7 +258,7 @@ def summary_page():
             # df3["cum"]=df3["%"].cumsum()
             df3=df3.head(10)
             df3 = df3.reset_index()
-            df3["From-to"]=  df3['ZC from'] + ' to ' + df3['ZC to']
+            df3["From-to"]=  df3['ZC from'] + ' - ' + df3['ZC to']
             df3.index=df3["From-to"].tolist()
             fig = px.bar(df3, y='Number of shipments', x='From-to',color='Number of shipments', color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'])
                 
@@ -277,7 +277,7 @@ def summary_page():
             fig_ship.update_layout( 
                 xaxis_title='',
                 yaxis_title='Shipments',
-                xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month']})
+                xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month'],"showgrid":True})
             st.write("<h5><b>Seasonality</b></h5>", unsafe_allow_html=True)
             st.plotly_chart(fig_ship,use_container_width=True)
 
@@ -304,8 +304,8 @@ def summary_page():
             df5=df5.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
             st.write(df5)
         with col3:
-            with st.expander("Read summary"):
-                 st.write("This shipment has bla bla....")
+            st.write("Summary")
+            st.write("This shipment has bla bla....")
     
             
 
