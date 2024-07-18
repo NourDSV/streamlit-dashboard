@@ -10,5 +10,3 @@ plotly
 streamlit-folium
 openpyxl
 pptx
-plotly.io
-pptx.util
