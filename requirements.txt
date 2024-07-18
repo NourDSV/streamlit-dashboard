@@ -10,4 +10,4 @@ plotly
 streamlit-folium
 openpyxl
 python-pptx
-kaleido==0.1.0post1
+
