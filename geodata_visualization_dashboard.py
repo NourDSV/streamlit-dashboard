@@ -305,9 +305,10 @@ def summary_page():
             st.write(df5)
         with col3:
             st.write("Summary")
-            st.write("This shipment has bla bla....")
+            st.write("This shipment bla bla....")
     
             
+
 
 
 def analysis_page ():
