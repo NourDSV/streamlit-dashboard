@@ -242,7 +242,7 @@ if selected == "Shipment Summary":
                          
                     merge2['radius'] = (merge2['PW DSV'] - merge2['PW DSV'].min()) / (merge2['PW DSV'].max() - merge2['PW DSV'].min()) * (20 - 5) + 5
                     if merge2['radius']==0:
-                         merge2['radius']
+                        merge2['radius']=1
                     else:
                          merge2["radius"]
                          
