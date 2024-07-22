@@ -9,6 +9,5 @@ branca
 plotly
 streamlit-folium
 openpyxl
-python-pptx
 streamlit_option_menu
-st_aggrid
+streamlit-aggrid
