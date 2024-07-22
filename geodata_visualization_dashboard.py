@@ -297,7 +297,7 @@ if selected == "Shipment Summary":
                     fig.update_coloraxes(showscale=False)
                     st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
                     st.plotly_chart(fig, use_container_width=True)
-                    pio.write_image(fig,"top_collection.png")
+                    # pio.write_image(fig,"top_collection.png")
             
             with col3:
                 df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
