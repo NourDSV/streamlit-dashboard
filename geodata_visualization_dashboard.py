@@ -238,11 +238,13 @@ if selected == "Shipment Summary":
                     lat=merge2["LAT"].iloc[k]
                     lon=merge2["LON"].iloc[k]
 
-                    if merge2['PW DSV'] - merge2['PW DSV'].min()<=0:
+                    
                          
-                        merge2['radius'] = (merge2['PW DSV'] - merge2['PW DSV'].min()) / (merge2['PW DSV'].max() - merge2['PW DSV'].min()) * (20 - 5) + 5
+                    merge2['radius'] = (merge2['PW DSV'] - merge2['PW DSV'].min()) / (merge2['PW DSV'].max() - merge2['PW DSV'].min()) * (20 - 5) + 5
+                    if merge2['radius']==0:
+                         merge2['radius']
                     else:
-                         merge2['radius'] =1
+                         merge2["radius"]
                          
                     folium.CircleMarker(
                         location=[lat, lon],
