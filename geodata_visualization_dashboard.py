@@ -157,7 +157,7 @@ if selected == "Shipment Summary":
                 annotations=[dict(text='Shipments', x=0.27, y=0.5, font_size=20, showarrow=False)])
                 st.write("<h5><b>Product</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig,use_container_width=True)
-                # fig.write_image("product.png")
+                
             with col2:
                 fig = make_subplots(rows=1, cols=1, specs=[[{'type':'domain'}]])
                 fig.add_trace(go.Pie(labels=labels_way, values=values_way, name="Way"),1,1)
@@ -165,7 +165,7 @@ if selected == "Shipment Summary":
                 fig.update_layout(annotations=[dict(text='Way', x=0.5, y=0.5, font_size=20, showarrow=False)])
                 st.write("<h5><b>Type</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig,use_container_width=True)
-                # pio.write_image(fig,"type.png")
+                
             
             with col3:
                 
@@ -184,7 +184,7 @@ if selected == "Shipment Summary":
                 fig.update_coloraxes(showscale=False)
                 st.write("<h5><b>Shipments per brackets</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig,use_container_width=True)
-                # pio.write_image(fig,"bracket.png")
+                
                 
             with col4:
                 #  removing the decimal after the comma for the column PW
@@ -256,7 +256,7 @@ if selected == "Shipment Summary":
                 st.write("""
                 <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🟦  Delivered countries</span>
                 """, unsafe_allow_html=True)
-                # m.save("map.png")
+                
             col1,col2,col3,col4 = st.columns([1,1,2,2.5])
             with col2:
 
@@ -277,27 +277,27 @@ if selected == "Shipment Summary":
                 fig.update_coloraxes(showscale=False)
                 st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig, use_container_width=True)
-                # pio.write_image(fig,"top_delivery.png")
+                
 
             with col1:
-                    df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                    df7=df7.rename(columns={'Date' : 'Number of shipments'})
-                    df7=df7.sort_values(by="Number of shipments",ascending= False )
-                    df7=df7.head(10)
-                    df7=df7.sort_values(by="Number of shipments",ascending= True )
-                    df7 = df7.reset_index()
-                    fig = px.bar(df7, y='ZC from', x='Number of shipments', 
-                    color='Number of shipments', 
-                    color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-                    orientation='h',
-                    hover_data={'kg': True, 'ldm': True})  
-                    fig.update_layout(
-                    xaxis_title='Shipments',  
-                    yaxis_title='' )
-                    fig.update_coloraxes(showscale=False)
-                    st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
-                    st.plotly_chart(fig, use_container_width=True)
-                    # pio.write_image(fig,"top_collection.png")
+                df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df7=df7.rename(columns={'Date' : 'Number of shipments'})
+                df7=df7.sort_values(by="Number of shipments",ascending= False )
+                df7=df7.head(10)
+                df7=df7.sort_values(by="Number of shipments",ascending= True )
+                df7 = df7.reset_index()
+                fig = px.bar(df7, y='ZC from', x='Number of shipments', 
+                color='Number of shipments', 
+                color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+                orientation='h',
+                hover_data={'kg': True, 'ldm': True})  
+                fig.update_layout(
+                xaxis_title='Shipments',  
+                yaxis_title='' )
+                fig.update_coloraxes(showscale=False)
+                st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
+                st.plotly_chart(fig, use_container_width=True)
+                
             
             with col3:
                 df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
@@ -317,7 +317,7 @@ if selected == "Shipment Summary":
                 fig.update_coloraxes(showscale=False)
                 st.write("<h5><b>Top 10 main lanes</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig, use_container_width=True)
-                # pio.write_image(fig,"top_lines.png")
+                
             with col4:
                 data['Month'] = data['Date'].dt.to_period('M')
                 df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
@@ -330,7 +330,7 @@ if selected == "Shipment Summary":
                     xaxis={'type': 'category', 'categoryorder': 'array', 'categoryarray': df4['Month'],"showgrid":True})
                 st.write("<h5><b>Seasonality</b></h5>", unsafe_allow_html=True)
                 st.plotly_chart(fig_ship,use_container_width=True)
-                # pio.write_image(fig,"seasonality.png")
+                
 
 
             col1,col2,col3=st.columns([1.5,1,1.5])
