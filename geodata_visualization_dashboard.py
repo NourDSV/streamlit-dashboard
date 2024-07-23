@@ -40,7 +40,7 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-
+@st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     if uploaded_file is not None:
@@ -111,10 +111,32 @@ if selected == "Shipment Summary":
         with col1:
                 st.write("**Filters option**")
                 selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
-                selected_cntry_from = st.multiselect('Select Country From', options=data['Cntry from'].unique())
-                selected_zc_from = st.multiselect('Select Zip Code From', options=data['ZC from'].unique())
-                selected_cntry_to = st.multiselect('Select Country To', options=data['Cntry to'].unique())
-                selected_zc_to = st.multiselect('Select Zip Code To', options=data['ZC to'].unique())
+                if selected_branch:
+                    data = data[data['Branch'].isin(selected_branch)]
+                else:
+                    data = data
+               
+                filtered_cntry_from = data['Cntry from'].unique()
+                selected_cntry_from = st.multiselect('Select Country From', filtered_cntry_from)
+                if selected_cntry_from:
+                    data = data[data['Cntry from'].isin(selected_cntry_from)]
+                else:
+                    data = data  
+
+                
+                filtered_zc_from = data['ZC from'].unique()
+                selected_zc_from = st.multiselect('Select Zip Code From', filtered_zc_from)
+
+                filtered_cntry_to = data['Cntry to'].unique()
+                selected_cntry_to = st.multiselect('Select Country To', filtered_cntry_to)
+                if selected_cntry_to:
+                    data = data[data['Cntry to'].isin(selected_cntry_to)]
+                else:
+                    data = data  
+
+               
+                filtered_zc_to = data['ZC to'].unique()
+                selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
                 selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
                 selected_way = st.multiselect('Select way', options=data['Way'].unique())
                 
@@ -356,7 +378,29 @@ if selected == "Shipment Summary":
                 df5= df5.fillna(0)
                 
                 df5=df5.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
+            
+############
+                # html_table = df5.to_html(index=False)
+                # st.markdown(
+                #     """
+                #     <style>
+                #     table {
+                #         width: 100%;
+                #     }
+                #     thead th {
+                #         text-align: center !important;
+                #     }
+                #     tbody th {
+                #         text-align: center !important;
+                #     }
+                #     </style>
+                #     """,
+                #     unsafe_allow_html=True
+                # )
+                # st.markdown(html_table, unsafe_allow_html=True)
+##############
                 st.write(df5)
+
             with col3:
                 st.write("Summary")
                 st.write("This shipment has bla bla....")
@@ -372,14 +416,14 @@ elif selected == "Shipment Profile":
         col1,col2=st.columns([1,7],gap="large")         
         with col1:
             st.write("**Filters option**")
-    
+            selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
             selected_cntry_from = st.multiselect('Select Country From', options=data['Cntry from'].unique())
             selected_zc_from = st.multiselect('Select Zip Code From', options=data['ZC from'].unique())
             selected_cntry_to = st.multiselect('Select Country To', options=data['Cntry to'].unique())
             selected_zc_to = st.multiselect('Select Zip Code To', options=data['ZC to'].unique())
             selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
             selected_way = st.multiselect('Select way', options=data['Way'].unique())
-            selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
+            
 
             data = data[
             (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
@@ -488,8 +532,9 @@ elif selected == "Maps":
     with col1:
         if not data.empty:
                 ship_from = data['ZC from'].dropna().unique().tolist()
+                selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
                 selected_country = st.selectbox('Select Shipment from', ship_from)
-                selected_level = st.selectbox('Select level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
+                selected_level = st.selectbox('Select a level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
                 st.write("Filters")
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
                 data=data[ (data['Product'].isin(produit) if produit else data['Product'].notnull())]
@@ -501,7 +546,9 @@ elif selected == "Maps":
         
         
         ship_from = data['ZC from'].dropna().unique().tolist()
-        data = data[data['ZC from'] == selected_country]
+        data = data[
+        (data['ZC from'] == selected_country)&
+        (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
 
         data=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
         data=pd.merge(data,zip_code,on='ZC to',how="left")
