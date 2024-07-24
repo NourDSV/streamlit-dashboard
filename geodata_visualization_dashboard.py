@@ -25,7 +25,7 @@ import base64
 from pptx import Presentation
 from pptx.util import Inches
 import plotly.io as pio
-from st_aggrid import AgGrid, GridOptionsBuilder
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from streamlit_option_menu import option_menu
 
 levl0=gpd.read_file("europe.geojson")
@@ -40,7 +40,7 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-@st.cache_data
+# @st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     if uploaded_file is not None:
@@ -84,7 +84,8 @@ if selected == "Upload data":
         st.session_state['uploaded_file'] = uploaded_file
         
         data = pd.read_excel(uploaded_file)
-        data['Date'] = pd.to_datetime(data['Date'])
+        if 'Date' in data.columns:
+            data['Date'] = data['Date'].apply(lambda x: pd.to_datetime(x) if pd.notnull(x) and x != '' else x)
         st.write(data)
         has_ldm = st.radio("Does your shipment profile have the 'Ldm' data ?", ("Yes", "No"))
         if has_ldm == "No":
@@ -379,26 +380,9 @@ if selected == "Shipment Summary":
                 
                 df5=df5.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
             
-############
-                # html_table = df5.to_html(index=False)
-                # st.markdown(
-                #     """
-                #     <style>
-                #     table {
-                #         width: 100%;
-                #     }
-                #     thead th {
-                #         text-align: center !important;
-                #     }
-                #     tbody th {
-                #         text-align: center !important;
-                #     }
-                #     </style>
-                #     """,
-                #     unsafe_allow_html=True
-                # )
-                # st.markdown(html_table, unsafe_allow_html=True)
-##############
+
+            
+
                 st.write(df5)
 
             with col3:
@@ -415,6 +399,7 @@ elif selected == "Shipment Profile":
         data = load_data()
         col1,col2=st.columns([1,7],gap="large")         
         with col1:
+            st.write("**Filters option**")
             selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
             if selected_branch:
                 data = data[data['Branch'].isin(selected_branch)]
@@ -439,11 +424,11 @@ elif selected == "Shipment Profile":
             else:
                 data = data  
 
-            
-            filtered_zc_to = data['ZC to'].unique()
-            selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
-            selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
-            selected_way = st.multiselect('Select way', options=data['Way'].unique())
+               
+                filtered_zc_to = data['ZC to'].unique()
+                selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
+                selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
+                selected_way = st.multiselect('Select way', options=data['Way'].unique())
             
 
             data = data[
@@ -457,7 +442,6 @@ elif selected == "Shipment Profile":
         with col2:
             st.header("Shipment Profile")
             data['Bracket'] = data['Bracket'].astype(str)
-
             pivot=pd.pivot_table(data,values="Cost",index=["Cntry from","ZC from","Cntry to","ZC to"],columns="Bracket",aggfunc="count")
             pivot["total"]=pivot.sum(axis=1)
             pivot["%"]=round(pivot["total"] /( pivot['total'].sum())*100,2)
@@ -473,13 +457,56 @@ elif selected == "Shipment Profile":
             pivot = pivot[sorted_bracket_columns + ['total', '%'] ]
             pivot= pivot.reset_index()
 
-            gb = GridOptionsBuilder.from_dataframe(pivot)
-            gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum')
-            gridOptions = gb.build()
-            AgGrid(pivot, gridOptions=gridOptions, height=800, fit_columns_on_grid_load=True)
 
 
             
+##################
+            gb = GridOptionsBuilder.from_dataframe(pivot)
+            gb.configure_default_column(flex=1, minWidth=200, floatingFilter=True)
+            gb.configure_column('Cntry from', headerName="Country From", filter="agSetColumnFilter")
+            gb.configure_column('ZC from', headerName="Zip Code From", filter="agSetColumnFilter")
+            gb.configure_column('Cntry to', headerName="Country To", filter="agSetColumnFilter")
+            gb.configure_column('ZC to', headerName="Zip Code To", filter="agSetColumnFilter")
+            gb.configure_column('total', headerName="Total", filter="agNumberColumnFilter")
+            gb.configure_column('%', headerName="Percentage", filter="agNumberColumnFilter")
+            gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren=True, groupSelectsFiltered=True)
+            gridOptions = gb.build()
+
+            # Display the AgGrid table in Streamlit
+            response = AgGrid(
+                pivot,
+                gridOptions=gridOptions,
+                update_mode=GridUpdateMode.SELECTION_CHANGED,
+                enable_enterprise_modules=True,
+                fit_columns_on_grid_load=True
+            )
+
+            # Get selected rows
+            selected_rows = response['selected_rows']
+            if selected_rows and len(selected_rows) > 0:
+                st.write(selected_rows)
+#########################
+            # gb = GridOptionsBuilder.from_dataframe(pivot)
+            # gb.configure_column("Cntry from", rowGroup=True, hide=False, headerName="Country From")
+            # gb.configure_column("ZC from", rowGroup=True, hide=False, headerName="Zip Code From")
+            # gb.configure_column("Cntry to", rowGroup=True, hide=False, headerName="Country To")
+            # gb.configure_column("ZC to", headerName="Zip Code To")
+            # gb.configure_column("total", headerName="Total")
+            # gb.configure_column("%", headerName="%")
+            # gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum')
+            # gridOptions = gb.build()
+            # response = AgGrid(
+            #     pivot,
+            #     gridOptions=gridOptions,
+            #     update_mode=GridUpdateMode.SELECTION_CHANGED,
+            #     fit_columns_on_grid_load=True,
+            #     enable_enterprise_modules=True,
+            #     allow_unsafe_jscode=True)
+
+
+
+          
+
             col1, col2 = st.columns(2)
             with col1:
         
