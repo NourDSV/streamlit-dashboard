@@ -281,7 +281,7 @@ if selected == "Shipment Summary":
 
                 folium_static(m,width=450, height=325)
                 st.write("""
-                <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🟦  Delivered countries</span>
+                <span style='font-size: small;'>🔴  Collecting countries &nbsp;&nbsp; 🔷  Delivered countries</span>
                 """, unsafe_allow_html=True)
                 
             col1,col2,col3,col4 = st.columns([1,1,2,2.5])
