@@ -21,12 +21,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
-
 import base64
 from pptx import Presentation
 from pptx.util import Inches
 import plotly.io as pio
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from streamlit_option_menu import option_menu
 
 levl0=gpd.read_file("europe.geojson")
@@ -41,7 +40,7 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-@st.cache_data
+# @st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     if uploaded_file is not None:
@@ -446,102 +445,46 @@ elif selected == "Shipment Profile":
             pivot=pd.pivot_table(data,values="Cost",index=["Cntry from","ZC from","Cntry to","ZC to"],columns="Bracket",aggfunc="count")
             pivot["total"]=pivot.sum(axis=1)
             pivot["%"]=round(pivot["total"] /( pivot['total'].sum())*100,2)
-            pivot.fillna(0, inplace=True)
+            pivot.fillna('', inplace=True)
 
             
             st.title('Pivot Table')
             # st.dataframe(pivot,width=1000,height=1000)
             bracket_columns = [col for col in pivot.columns if col not in ['total', '%']]
-            pivot[bracket_columns] = pivot[bracket_columns].astype(int)
 
             
             sorted_bracket_columns = sorted(bracket_columns, key=lambda x: int(x) if x.isdigit() else float('inf'))
             pivot = pivot[sorted_bracket_columns + ['total', '%'] ]
             pivot= pivot.reset_index()
-            columns_order = ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%'] + [col for col in pivot.columns if col not in ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%', 'total']]+['total']
-            pivot = pivot[columns_order]
 
-            total_row = pivot.sum(numeric_only=True).to_dict()
-            total_row.update({'Cntry from': 'Total', 'ZC from': '', 'Cntry to': '', 'ZC to': '', '%': pivot['%'].sum(), 'total': pivot['total'].sum()})
-            total_row=pd.DataFrame([total_row])
-            total_row.drop(columns=['ZC from', 'Cntry to', 'ZC to'], inplace=True)
-            cols = ['Cntry from'] + [col for col in total_row.columns if col != 'Cntry from']
-            total_row= total_row[cols]
-            # pivot = pd.concat([pivot, pd.DataFrame([total_row])], ignore_index=True)
-            st.dataframe(total_row)
-            # st.dataframe(pd.DataFrame([total_row]))        
-            min_value = pivot['%'].min()
-            max_value = pivot['%'].max()
-            min_total = pivot['total'].min()
-            max_total = pivot['total'].max()
+
+
             
 ##################
             gb = GridOptionsBuilder.from_dataframe(pivot)
-            gb1 = GridOptionsBuilder.from_dataframe(total_row)
-
-            gb1.configure_column('Cntry from', headerName="Total", minWidth=400, maxWidth=500)
-
-            gb.configure_default_column(floatingFilter=True)
-            gb.configure_column('Cntry from', headerName="Cntry from", filter="agSetColumnFilter", minWidth=98, maxWidth=300)
-            gb.configure_column('ZC from', headerName="ZC from", filter="agSetColumnFilter", minWidth=90, maxWidth=300)
-            gb.configure_column('Cntry to', headerName="Cntry to", filter="agSetColumnFilter", minWidth=85, maxWidth=300)
-            gb.configure_column('ZC to', headerName="ZC to", filter="agSetColumnFilter", minWidth=80, maxWidth=300)
-            gb.configure_column('total', headerName="Total", filter="agNumberColumnFilter", minWidth=70, maxWidth=150)
-            gb.configure_column('%', headerName="%", filter="agNumberColumnFilter", minWidth=70, maxWidth=150)
-
-            jscode = JsCode(f"""
-                function(params) {{
-                    var value = params.value;
-                    var minValue = {min_value};
-                    var maxValue = {max_value};
-                    var normalizedValue = (value - minValue) / (maxValue - minValue) * 100;
-                    var color;
-                    
-                    if (normalizedValue >= 75) {{
-                        color = 'green';
-                    }} else if (normalizedValue >= 50) {{
-                        color = 'orange';
-                    }} else {{
-                        color = 'red';
-                    }}
-
-                    return {{
-                        'background': 'linear-gradient(90deg, ' + color + ' ' + normalizedValue + '%,' + ' transparent ' + normalizedValue + '%)',
-                        'color': 'black'
-                    }};
-                }}
-            """)
-            jscode_total = JsCode("""
-                function(params) {
-                    var value = params.value;
-                    var color = value >= 80 ? '#267326' : // Dark Green
-                                value >= 60 ? '#39ac39' : // Medium Green
-                                value >= 30 ? '#79d279' : // Medium Green
-                                '#d9f2d9'; // Light Green
-                    return {
-                        'backgroundColor': color,
-                        'color': 'black'
-                    };
-                }
-                """)
-            gb.configure_column('%', cellStyle=jscode)
-            gb.configure_column('total', cellStyle=jscode_total)
+            gb.configure_default_column(flex=1, minWidth=200, floatingFilter=True)
+            gb.configure_column('Cntry from', headerName="Country From", filter="agSetColumnFilter")
+            gb.configure_column('ZC from', headerName="Zip Code From", filter="agSetColumnFilter")
+            gb.configure_column('Cntry to', headerName="Country To", filter="agSetColumnFilter")
+            gb.configure_column('ZC to', headerName="Zip Code To", filter="agSetColumnFilter")
+            gb.configure_column('total', headerName="Total", filter="agNumberColumnFilter")
+            gb.configure_column('%', headerName="Percentage", filter="agNumberColumnFilter")
+            gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren=True, groupSelectsFiltered=True)
             gridOptions = gb.build()
-            
-            AgGrid(total_row)
 
             # Display the AgGrid table in Streamlit
             response = AgGrid(
                 pivot,
                 gridOptions=gridOptions,
-                update_mode=GridUpdateMode.NO_UPDATE,
+                update_mode=GridUpdateMode.SELECTION_CHANGED,
                 enable_enterprise_modules=True,
-                allow_unsafe_jscode=True,
                 fit_columns_on_grid_load=True
             )
-  
-          
-           
+
+            # Get selected rows
+            selected_rows = response['selected_rows']
+            if selected_rows and len(selected_rows) > 0:
+                st.write(selected_rows)
 #########################
             # gb = GridOptionsBuilder.from_dataframe(pivot)
             # gb.configure_column("Cntry from", rowGroup=True, hide=False, headerName="Country From")
@@ -564,48 +507,48 @@ elif selected == "Shipment Profile":
 
           
 
-            # col1, col2 = st.columns(2)
-            # with col1:
+            col1, col2 = st.columns(2)
+            with col1:
         
             
-            #     st.title("Seasonality")
+                st.title("Seasonality")
             
             
 
-            #     data['Month'] = data['Date'].dt.to_period('M')
-            #     df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
-            #     df4=df4.rename(columns={'Date': 'Shipments'})
-            #     df4['Month'] = df4['Month'].astype(str)
+                data['Month'] = data['Date'].dt.to_period('M')
+                df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
+                df4=df4.rename(columns={'Date': 'Shipments'})
+                df4['Month'] = df4['Month'].astype(str)
                 
-            #     st.write("")
-            #     st.dataframe(df4)
-            #     metric = st.selectbox("Select fig to show",['Shipments', 'kg', 'ldm', 'PW DSV'])
-            # with col2:
+                st.write("")
+                st.dataframe(df4)
+                metric = st.selectbox("Select fig to show",['Shipments', 'kg', 'ldm', 'PW DSV'])
+            with col2:
 
-            #         fig_ship = px.line(df4, x='Month', y='Shipments', markers=True)
-            #         fig_ship.update_layout(
-            #             title='Monthly Shipments', 
-            #             xaxis_title='Month',
-            #             yaxis_title='Number of Shipments'
-            #         )
+                    fig_ship = px.line(df4, x='Month', y='Shipments', markers=True)
+                    fig_ship.update_layout(
+                        title='Monthly Shipments', 
+                        xaxis_title='Month',
+                        yaxis_title='Number of Shipments'
+                    )
 
-            #         fig_kg = px.line(df4, x='Month', y='kg', markers=True)
-            #         fig_kg.update_layout(title=' Kg per month', xaxis_title='Month', yaxis_title='KG')
+                    fig_kg = px.line(df4, x='Month', y='kg', markers=True)
+                    fig_kg.update_layout(title=' Kg per month', xaxis_title='Month', yaxis_title='KG')
 
-            #         fig_ldm = px.line(df4, x='Month', y='ldm', markers=True)
-            #         fig_ldm.update_layout(title=' ldm per month', xaxis_title='Month', yaxis_title='Meters')
+                    fig_ldm = px.line(df4, x='Month', y='ldm', markers=True)
+                    fig_ldm.update_layout(title=' ldm per month', xaxis_title='Month', yaxis_title='Meters')
 
-            #         fig_pw = px.line(df4, x='Month', y='PW DSV', markers=True)
-            #         fig_pw.update_layout(title=' Pay Weight per month', xaxis_title='Month', yaxis_title='Kg')
+                    fig_pw = px.line(df4, x='Month', y='PW DSV', markers=True)
+                    fig_pw.update_layout(title=' Pay Weight per month', xaxis_title='Month', yaxis_title='Kg')
 
-            #         if metric == 'Shipments':
-            #             st.plotly_chart(fig_ship)
-            #         elif metric == 'kg':
-            #             st.plotly_chart(fig_kg)
-            #         elif metric == 'ldm':
-            #             st.plotly_chart(fig_ldm)
-            #         elif metric == 'PW DSV':
-            #             st.plotly_chart(fig_pw)
+                    if metric == 'Shipments':
+                        st.plotly_chart(fig_ship)
+                    elif metric == 'kg':
+                        st.plotly_chart(fig_kg)
+                    elif metric == 'ldm':
+                        st.plotly_chart(fig_ldm)
+                    elif metric == 'PW DSV':
+                        st.plotly_chart(fig_pw)
 
 
     # with col2:
