@@ -41,7 +41,7 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-@st.cache_data
+# @st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     if uploaded_file is not None:
@@ -68,7 +68,7 @@ if 'page' not in st.session_state:
 
 selected = option_menu(
 menu_title=None,
-options=["Upload data", "Shipment Summary", "Shipment Profile","Maps"],
+options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection"],
 icons=["bi-cloud-upload", "house", "graph-up","bi bi-globe-europe-africa"],
 menu_icon="cast",
 default_index=0,
@@ -441,7 +441,18 @@ elif selected == "Shipment Profile":
             (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
             (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
         with col2:
+            def can_convert_to_int(value):
+                try:
+                    int(value)  # Try to convert to integer
+                    return True
+                except (ValueError, TypeError):
+                    return False
             st.header("Shipment Profile")
+            data.dropna(subset=['Bracket'])
+            data=data[data['Bracket'].apply(can_convert_to_int)]
+            
+             
+            
             data['Bracket'] = data['Bracket'].astype(str)
             pivot=pd.pivot_table(data,values="Cost",index=["Cntry from","ZC from","Cntry to","ZC to"],columns="Bracket",aggfunc="count")
             pivot["total"]=pivot.sum(axis=1)
@@ -451,22 +462,25 @@ elif selected == "Shipment Profile":
             
             st.title('Pivot Table')
             # st.dataframe(pivot,width=1000,height=1000)
+            
             bracket_columns = [col for col in pivot.columns if col not in ['total', '%']]
+            
             pivot[bracket_columns] = pivot[bracket_columns].astype(int)
 
             
             sorted_bracket_columns = sorted(bracket_columns, key=lambda x: int(x) if x.isdigit() else float('inf'))
             pivot = pivot[sorted_bracket_columns + ['total', '%'] ]
             pivot= pivot.reset_index()
-            columns_order = ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%'] + [col for col in pivot.columns if col not in ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%', 'total']]+['total']
+            columns_order = ['%','Cntry from', 'ZC from', 'Cntry to', 'ZC to'] + [col for col in pivot.columns if col not in ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%', 'total']]+['total']
             pivot = pivot[columns_order]
 
             total_row = pivot.sum(numeric_only=True).to_dict()
             total_row.update({'Cntry from': 'Total', 'ZC from': '', 'Cntry to': '', 'ZC to': '', '%': pivot['%'].sum(), 'total': pivot['total'].sum()})
             total_row=pd.DataFrame([total_row])
-            total_row.drop(columns=['ZC from', 'Cntry to', 'ZC to'], inplace=True)
-            cols = ['Cntry from'] + [col for col in total_row.columns if col != 'Cntry from']
+            
+            cols = ['%','Cntry from', 'ZC from', 'Cntry to', 'ZC to'] + [col for col in pivot.columns if col not in ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%', 'total']]+['total']
             total_row= total_row[cols]
+            total_row.drop(columns=['ZC from', 'Cntry to', 'ZC to',"%"], inplace=True)
             # pivot = pd.concat([pivot, pd.DataFrame([total_row])], ignore_index=True)
             st.dataframe(total_row)
             # st.dataframe(pd.DataFrame([total_row]))        
@@ -474,12 +488,18 @@ elif selected == "Shipment Profile":
             max_value = pivot['%'].max()
             min_total = pivot['total'].min()
             max_total = pivot['total'].max()
+            min_value1 = total_row.drop(columns=["Cntry from", "total"]).min().min()
+            max_value1 = total_row.drop(columns=["Cntry from", "total"]).max().max()
+            normalizedValue = (700 - min_value1) / (max_value1 - min_value1) * 100
+            st.write(normalizedValue)
+            
+            
             
 ##################
             gb = GridOptionsBuilder.from_dataframe(pivot)
             gb1 = GridOptionsBuilder.from_dataframe(total_row)
 
-            gb1.configure_column('Cntry from', headerName="Total", minWidth=400, maxWidth=500)
+            gb1.configure_column('Cntry from', headerName="Total", minWidth=300, maxWidth=300)
 
             gb.configure_default_column(floatingFilter=True)
             gb.configure_column('Cntry from', headerName="Cntry from", filter="agSetColumnFilter", minWidth=98, maxWidth=300)
@@ -524,12 +544,44 @@ elif selected == "Shipment Profile":
                     };
                 }
                 """)
+            jscode1 = JsCode(f"""
+                function(params1) {{
+                    var rowIndex1 = params1.node.rowIndex;
+                    var colId1 = params1.column.colId1;
+                    var value1 = params1.value1;
+                    var minValue1 = {min_value1};
+                    var maxValue1 = {max_value1};
+                    var normalizedValue1 = (value1 - minValue1) / (maxValue1 - minValue1) * 100;
+                    var color;
+                    
+                    if (rowIndex1 === 0 && colId1 !== 'Cntry from' && colId1 !=='total' ) {{
+                        if (normalizedValue1 >= 70) {{
+                            color = 'green';
+                        }} else if (normalizedValue1 >= 30) {{
+                            color = 'orange';
+                        }} else {{
+                            color = 'red';
+                        }}
+                        return {{
+                            'background': 'linear-gradient(90deg, ' + color + ' ' + normalizedValue1 + '%,' + ' transparent ' + normalizedValue1 + '%)',
+                            'color': 'black'
+                        }};
+                    }}
+                    return {{
+                        'color': 'black'
+                    }};
+                }}
+            """)
             gb.configure_column('%', cellStyle=jscode)
-            gb.configure_column('total', cellStyle=jscode_total)
-            gridOptions = gb.build()
+            # gb.configure_column('total', cellStyle=jscode_total)
+            for col in total_row.columns:
+                if col not in ["Cntry from","total"]:
+                    gb1.configure_column(col, cellStyle=jscode1)
             
-            AgGrid(total_row)
-
+            gridOptions = gb.build()
+            gridOptions1 = gb1.build()
+            
+            AgGrid(total_row,height=63,fit_columns_on_grid_load=True ,allow_unsafe_jscode=True,gridOptions=gridOptions1)
             # Display the AgGrid table in Streamlit
             response = AgGrid(
                 pivot,
@@ -537,10 +589,22 @@ elif selected == "Shipment Profile":
                 update_mode=GridUpdateMode.NO_UPDATE,
                 enable_enterprise_modules=True,
                 allow_unsafe_jscode=True,
-                fit_columns_on_grid_load=True
+                fit_columns_on_grid_load=True,
+                height=12000
             )
   
-          
+elif selected == "Collection":
+    
+    st.title('Collection')
+    data = load_data()
+     
+    df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
+    df1=df1.rename(columns={'Date': 'Shipments'})
+    st.write(df1)
+    df2=df1.sum(numeric_only=True).to_frame().T
+    df2.index=["Total"]
+    st.dataframe(df2)
+
            
 #########################
             # gb = GridOptionsBuilder.from_dataframe(pivot)
@@ -633,12 +697,14 @@ elif selected == "Maps":
     st.write("**Filters option**")
     
     data = load_data()
+
     col1,col2=st.columns([1,7],gap="large")         
     with col1:
         if not data.empty:
                 ship_from = data['ZC from'].dropna().unique().tolist()
+                ship_to=data['ZC to'].dropna().unique().tolist()
                 selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
-                selected_country = st.selectbox('Select Shipment from', ship_from)
+                
                 selected_level = st.selectbox('Select a level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
                 st.write("Filters")
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
@@ -648,89 +714,182 @@ elif selected == "Maps":
             
     with col2:
         st.header('Map')
-        
-        
-        ship_from = data['ZC from'].dropna().unique().tolist()
-        data = data[
-        (data['ZC from'] == selected_country)&
-        (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+        tab1,tab2=st.tabs(["shipment map","collectong map"])
+        with tab1:
 
-        data=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
-        data=pd.merge(data,zip_code,on='ZC to',how="left")
-        data['count'] = data.groupby('ZC to')['ZC to'].transform('count')
-        data["PW DSV"]=(data["PW DSV"])/data["count"]
+            selected_country = st.selectbox('Select Shipment from', ship_from)
+        
+            data_to = data[
+            (data['ZC from'] == selected_country)&
+            (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+
+            data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
+            data_to=pd.merge(data_to,zip_code,on='ZC to',how="left")
+            data_to['count'] = data_to.groupby('ZC to')['ZC to'].transform('count')
+            data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
 
     
         
 
-        if selected_level== "country level":
-            data=data.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
-            merge=pd.merge(levl0,data,right_on="nuts0" ,left_on="ISO2",how="right")
-            colums=["nuts0","PW DSV"]
-            key="properties.ISO2"
-            field=["NAME","PW DSV"]
-            alias=["To : ", "Value: "]
+            if selected_level== "country level":
+                data_to=data_to.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+                merge=pd.merge(levl0,data_to,right_on="nuts0" ,left_on="ISO2",how="right")
+                colums=["nuts0","PW DSV"]
+                key="properties.ISO2"
+                field=["NAME","PW DSV"]
+                alias=["To : ", "Value: "]
+                
             
-        
-        elif selected_level== "Nuts1":
-            data=data.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
-            merge=pd.merge(levl1,data,right_on="nuts1" ,left_on="NUTS_ID",how="right")
-            colums=["nuts1","PW DSV"]
-            key="properties.NUTS_ID"
-            field=["NUTS_NAME","NUTS_ID","PW DSV"]
-            alias=["To: " ,"NUTS_ID: ",  "Value: "]
-        elif selected_level== "Nuts2":
-            data=data.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
-            merge=pd.merge(levl2,data,right_on="nuts2" ,left_on="NUTS_ID",how="right")
-            colums=["nuts2","PW DSV"]
-            key="properties.NUTS_ID"
-            field=["NUTS_NAME","NUTS_ID","PW DSV"]
-            alias=["To: " ,"NUTS_ID: ",  "Value: "]
-        elif selected_level== "Nuts3":
-            data=data.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
-            merge=pd.merge(levl3,data,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
-            colums=["NUTS3","PW DSV"]
-            key="properties.NUTS_ID"
-            field=["NUTS_NAME","NUTS_ID","PW DSV"]
-            alias=["To: " ,"NUTS_ID: ",  "Value: "]
+            elif selected_level== "Nuts1":
+                data_to=data_to.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
+                merge=pd.merge(levl1,data_to,right_on="nuts1" ,left_on="NUTS_ID",how="right")
+                colums=["nuts1","PW DSV"]
+                key="properties.NUTS_ID"
+                field=["NUTS_NAME","NUTS_ID","PW DSV"]
+                alias=["To: " ,"NUTS_ID: ",  "Value: "]
+            elif selected_level== "Nuts2":
+                data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
+                merge=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
+                colums=["nuts2","PW DSV"]
+                key="properties.NUTS_ID"
+                field=["NUTS_NAME","NUTS_ID","PW DSV"]
+                alias=["To: " ,"NUTS_ID: ",  "Value: "]
+            elif selected_level== "Nuts3":
+                data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
+                merge=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
+                colums=["NUTS3","PW DSV"]
+                key="properties.NUTS_ID"
+                field=["NUTS_NAME","NUTS_ID","PW DSV"]
+                alias=["To: " ,"NUTS_ID: ",  "Value: "]
 
     
-        m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
-        choropleth=folium.Choropleth(
-        geo_data=merge,
-        name="choropleth",
-        data=merge,
-        columns=colums,
-        key_on=key,
-        fill_color='OrRd',
-        fill_opacity=0.7,
-        legend=True,
-        highlight=True,                   
-        ).geojson.add_to(m)
+            m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
+            choropleth=folium.Choropleth(
+            geo_data=merge,
+            name="choropleth",
+            data=merge,
+            columns=colums,
+            key_on=key,
+            fill_color='OrRd',
+            fill_opacity=0.7,
+            legend=True,
+            highlight=True,                   
+            ).geojson.add_to(m)
 
-        folium.features.GeoJson(
-                        data=merge,
-                        name='test',
-                        smooth_factor=2,
-                        style_function=lambda x: {'color':'black','fillColor':'transparent','weight':0.5},
-                        tooltip=folium.features.GeoJsonTooltip(
-                            fields=field,    
-                            aliases=alias,  
-                            localize=True,
-                            sticky=False,
-                            labels=True,
-                            style="""
-                                background-color: #F0EFEF;
-                                border: 2px solid black;
-                                border-radius: 3px;
-                                box-shadow: 3px;
-                            """,
-                            max_width=800,),
-                                highlight_function=lambda x: {'weight':3,'fillColor':'grey'},
-                            ).add_to(choropleth)
+            folium.features.GeoJson(
+                            data=merge,
+                            name='test',
+                            smooth_factor=2,
+                            style_function=lambda x: {'color':'black','fillColor':'transparent','weight':0.5},
+                            tooltip=folium.features.GeoJsonTooltip(
+                                fields=field,    
+                                aliases=alias,  
+                                localize=True,
+                                sticky=False,
+                                labels=True,
+                                style="""
+                                    background-color: #F0EFEF;
+                                    border: 2px solid black;
+                                    border-radius: 3px;
+                                    box-shadow: 3px;
+                                """,
+                                max_width=800,),
+                                    highlight_function=lambda x: {'weight':3,'fillColor':'grey'},
+                                ).add_to(choropleth)
         
-    
+            if selected_country == selected_country :
+                try:
+                    nuts_of_the_ZC=zip_code["NUTS3"].loc[zip_code["ZC to"]==selected_country]
+                    polygon = levl3['geometry'].loc[levl3["NUTS_ID"]==(nuts_of_the_ZC.tolist()[0])]
+                    centroid = polygon.centroid
+                    long=centroid.x.tolist()[0]
+                    lat=centroid.y.tolist()[0]
+                    folium.Marker([lat, long],icon=folium.Icon(color='red', ), tooltip=f" From {selected_country}").add_to(m)
+                except Exception :
+                    print ("error")
 
+            with tab2:
+
+                selected_country_to = st.selectbox('Select Shipment to', ship_to)
+            
+                data_to = data[
+                (data['ZC from'] == selected_country_to)&
+                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+
+                data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
+                data_to=pd.merge(data_to,zip_code,on='ZC to',how="left")
+                data_to['count'] = data_to.groupby('ZC to')['ZC to'].transform('count')
+                data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
+
+        
+            
+
+                if selected_level== "country level":
+                    data_to=data_to.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+                    merge=pd.merge(levl0,data_to,right_on="nuts0" ,left_on="ISO2",how="right")
+                    colums=["nuts0","PW DSV"]
+                    key="properties.ISO2"
+                    field=["NAME","PW DSV"]
+                    alias=["To : ", "Value: "]
+                    
+                
+                elif selected_level== "Nuts1":
+                    data_to=data_to.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
+                    merge=pd.merge(levl1,data_to,right_on="nuts1" ,left_on="NUTS_ID",how="right")
+                    colums=["nuts1","PW DSV"]
+                    key="properties.NUTS_ID"
+                    field=["NUTS_NAME","NUTS_ID","PW DSV"]
+                    alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                elif selected_level== "Nuts2":
+                    data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
+                    merge=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
+                    colums=["nuts2","PW DSV"]
+                    key="properties.NUTS_ID"
+                    field=["NUTS_NAME","NUTS_ID","PW DSV"]
+                    alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                elif selected_level== "Nuts3":
+                    data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
+                    merge=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
+                    colums=["NUTS3","PW DSV"]
+                    key="properties.NUTS_ID"
+                    field=["NUTS_NAME","NUTS_ID","PW DSV"]
+                    alias=["To: " ,"NUTS_ID: ",  "Value: "]
+
+        
+                m1= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
+                choropleth=folium.Choropleth(
+                geo_data=merge,
+                name="choropleth",
+                data=merge,
+                columns=colums,
+                key_on=key,
+                fill_color='OrRd',
+                fill_opacity=0.7,
+                legend=True,
+                highlight=True,                   
+                ).geojson.add_to(m1)
+
+                folium.features.GeoJson(
+                                data=merge,
+                                name='test',
+                                smooth_factor=2,
+                                style_function=lambda x: {'color':'black','fillColor':'transparent','weight':0.5},
+                                tooltip=folium.features.GeoJsonTooltip(
+                                    fields=field,    
+                                    aliases=alias,  
+                                    localize=True,
+                                    sticky=False,
+                                    labels=True,
+                                    style="""
+                                        background-color: #F0EFEF;
+                                        border: 2px solid black;
+                                        border-radius: 3px;
+                                        box-shadow: 3px;
+                                    """,
+                                    max_width=800,),
+                                        highlight_function=lambda x: {'weight':3,'fillColor':'grey'},
+                                    ).add_to(choropleth)
+            
         with col1:
             if st.checkbox('show DSV branches'):
                     categories=dsv["Country"].unique().tolist()
@@ -747,16 +906,7 @@ elif selected == "Maps":
                         popup = folium.Popup(iframe, max_width=500)).add_to(m)
 
                     TagFilterButton(categories).add_to(m)
-        if selected_country == selected_country :
-            try:
-                nuts_of_the_ZC=zip_code["NUTS3"].loc[zip_code["ZC to"]==selected_country]
-                polygon = levl3['geometry'].loc[levl3["NUTS_ID"]==(nuts_of_the_ZC.tolist()[0])]
-                centroid = polygon.centroid
-                long=centroid.x.tolist()[0]
-                lat=centroid.y.tolist()[0]
-                folium.Marker([lat, long],icon=folium.Icon(color='red', ), tooltip=f" From {selected_country}").add_to(m)
-            except Exception :
-                print ("error")
+        
 
         Fullscreen(position="topleft").add_to(m)
         html_string = m.get_root().render()
@@ -767,17 +917,9 @@ elif selected == "Maps":
                 href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
                 return href
         st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
+        
 
-# def collection():
-#     st.title('Collection')
-#     data = load_data()
-     
-#     df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
-#     df1=df1.rename(columns={'Date': 'Shipments'})
-#     st.write(df1)
-#     df2=df1.sum(numeric_only=True).to_frame().T
-#     df2.index=["Total"]
-#     st.dataframe(df2)
+
 
 if 'uploaded_file' not in st.session_state:
      st.session_state['uploaded_file'] = None
