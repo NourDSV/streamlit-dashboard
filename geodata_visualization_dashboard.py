@@ -474,7 +474,7 @@ elif selected == "Shipment Profile":
             total_row= total_row[cols]
             total_row.drop(columns=['ZC from', 'Cntry to', 'ZC to',"%"], inplace=True)
             # pivot = pd.concat([pivot, pd.DataFrame([total_row])], ignore_index=True)
-            st.dataframe(total_row)
+           
             # st.dataframe(pd.DataFrame([total_row]))        
             min_value = pivot['%'].min()
             max_value = pivot['%'].max()
@@ -482,16 +482,15 @@ elif selected == "Shipment Profile":
             max_total = pivot['total'].max()
             min_value1 = total_row.drop(columns=["Cntry from", "total"]).min().min()
             max_value1 = total_row.drop(columns=["Cntry from", "total"]).max().max()
-            normalizedValue = (700 - min_value1) / (max_value1 - min_value1) * 100
-            st.write(normalizedValue)
+            
             
             
             
 ##################
             gb = GridOptionsBuilder.from_dataframe(pivot)
-            gb1 = GridOptionsBuilder.from_dataframe(total_row)
+            
 
-            gb1.configure_column('Cntry from', headerName="Total", minWidth=300, maxWidth=300)
+            
 
             gb.configure_default_column(floatingFilter=True)
             gb.configure_column('Cntry from', headerName="Cntry from", filter="agSetColumnFilter", minWidth=98, maxWidth=300)
@@ -537,25 +536,25 @@ elif selected == "Shipment Profile":
                 }
                 """)
             jscode1 = JsCode(f"""
-                function(params1) {{
-                    var rowIndex1 = params1.node.rowIndex;
-                    var colId1 = params1.column.colId1;
-                    var value1 = params1.value1;
-                    var minValue1 = {min_value1};
-                    var maxValue1 = {max_value1};
-                    var normalizedValue1 = (value1 - minValue1) / (maxValue1 - minValue1) * 100;
+                function(params) {{
+                    var rowIndex = params.node.rowIndex;
+                    var colId = params.column.colId;
+                    var value = params.value;
+                    var minValue = {min_value1};
+                    var maxValue = {max_value1};
+                    var normalizedValue = (value - minValue) / (maxValue - minValue) * 100;
                     var color;
-                    
-                    if (rowIndex1 === 0 && colId1 !== 'Cntry from' && colId1 !=='total' ) {{
-                        if (normalizedValue1 >= 70) {{
+
+                    if (rowIndex === 0 && colId !== 'Total' && colId !== '%') {{
+                        if (normalizedValue >= 80) {{
                             color = 'green';
-                        }} else if (normalizedValue1 >= 30) {{
+                        }} else if (normalizedValue >= 30) {{
                             color = 'orange';
                         }} else {{
                             color = 'red';
                         }}
                         return {{
-                            'background': 'linear-gradient(90deg, ' + color + ' ' + normalizedValue1 + '%,' + ' transparent ' + normalizedValue1 + '%)',
+                            'background': 'linear-gradient(90deg, ' + color + ' ' + normalizedValue + '%,' + ' transparent ' + normalizedValue + '%)',
                             'color': 'black'
                         }};
                     }}
@@ -564,6 +563,8 @@ elif selected == "Shipment Profile":
                     }};
                 }}
             """)
+            gb1 = GridOptionsBuilder.from_dataframe(total_row)
+            gb1.configure_column('Cntry from', headerName="Bracket", minWidth=423, maxWidth=423)
             gb.configure_column('%', cellStyle=jscode)
             # gb.configure_column('total', cellStyle=jscode_total)
             for col in total_row.columns:
@@ -572,6 +573,7 @@ elif selected == "Shipment Profile":
             
             gridOptions = gb.build()
             gridOptions1 = gb1.build()
+            
             
             AgGrid(total_row,height=63,fit_columns_on_grid_load=True ,allow_unsafe_jscode=True,gridOptions=gridOptions1)
             # Display the AgGrid table in Streamlit
