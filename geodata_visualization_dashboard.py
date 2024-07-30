@@ -9,10 +9,6 @@ import json
 from folium.features import GeoJsonTooltip
 import branca
 from folium.plugins import TagFilterButton
-from folium.plugins import TimeSliderChoropleth
-from folium.plugins import Draw
-from folium.plugins import GroupedLayerControl
-from folium.plugins import Search
 from branca.colormap import linear
 from streamlit_folium import folium_static
 from folium.plugins import Fullscreen
@@ -21,11 +17,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
-
 import base64
-
-from pptx.util import Inches
-import plotly.io as pio
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 from streamlit_option_menu import option_menu
 
