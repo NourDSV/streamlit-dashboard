@@ -695,27 +695,25 @@ elif selected == "Maps":
     col1,col2=st.columns([1,7],gap="large")         
     with col1:
         if not data.empty:
-                ship_from = data['ZC from'].dropna().unique().tolist()
-                ship_to=data['ZC to'].dropna().unique().tolist()
-                selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
                 
+                selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
                 selected_level = st.selectbox('Select a level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
-                st.write("Filters")
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
-                data=data[ (data['Product'].isin(produit) if produit else data['Product'].notnull())]
+                data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
 
+                 
         
             
     with col2:
         st.header('Map')
-        tab1,tab2=st.tabs(["shipment map","collectong map"])
+        tab1,tab2,tab3=st.tabs(["Shipment map","Collecting map","See the top lines"])
         with tab1:
-
+            ship_from = data['ZC from'].dropna().unique().tolist()
             selected_country = st.selectbox('Select Shipment from', ship_from)
         
-            data_to = data[
-            (data['ZC from'] == selected_country)&
-            (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+            data_to = data[(data['ZC from'] == selected_country)]
+            
 
             data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
             data_to=pd.merge(data_to,zip_code,on='ZC to',how="left")
@@ -801,18 +799,26 @@ elif selected == "Maps":
                     folium.Marker([lat, long],icon=folium.Icon(color='red', ), tooltip=f" From {selected_country}").add_to(m)
                 except Exception :
                     print ("error")
+            Fullscreen(position="topleft").add_to(m)
+            html_string = m.get_root().render()
+            
+            folium_static(m, height=700,width=1200)
+            
+            def create_download_button(html_string, filename):
+                    b64 = base64.b64encode(html_string.encode()).decode()
+                    href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
+                    return href
+            st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
 
             with tab2:
-
+                ship_to=data['ZC to'].dropna().unique().tolist()
                 selected_country_to = st.selectbox('Select Shipment to', ship_to)
             
-                data_to = data[
-                (data['ZC from'] == selected_country_to)&
-                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+                data_to = data[(data['ZC to'] == selected_country_to)]
 
-                data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
-                data_to=pd.merge(data_to,zip_code,on='ZC to',how="left")
-                data_to['count'] = data_to.groupby('ZC to')['ZC to'].transform('count')
+                data_to=data_to.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
+                data_to=pd.merge(data_to,zip_code,right_on='ZC to',left_on="ZC from",how="left")
+                data_to['count'] = data_to.groupby('ZC from')['ZC from'].transform('count')
                 data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
 
         
@@ -820,51 +826,51 @@ elif selected == "Maps":
 
                 if selected_level== "country level":
                     data_to=data_to.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
-                    merge=pd.merge(levl0,data_to,right_on="nuts0" ,left_on="ISO2",how="right")
+                    merge_to=pd.merge(levl0,data_to,right_on="nuts0" ,left_on="ISO2",how="right")
                     colums=["nuts0","PW DSV"]
                     key="properties.ISO2"
                     field=["NAME","PW DSV"]
-                    alias=["To : ", "Value: "]
+                    alias=["From : ", "Value: "]
                     
                 
                 elif selected_level== "Nuts1":
                     data_to=data_to.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
-                    merge=pd.merge(levl1,data_to,right_on="nuts1" ,left_on="NUTS_ID",how="right")
+                    merge_to=pd.merge(levl1,data_to,right_on="nuts1" ,left_on="NUTS_ID",how="right")
                     colums=["nuts1","PW DSV"]
                     key="properties.NUTS_ID"
                     field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                    alias=["From: " ,"NUTS_ID: ",  "Value: "]
                 elif selected_level== "Nuts2":
                     data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
-                    merge=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
+                    merge_to=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
                     colums=["nuts2","PW DSV"]
                     key="properties.NUTS_ID"
                     field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                    alias=["From: " ,"NUTS_ID: ",  "Value: "]
                 elif selected_level== "Nuts3":
                     data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
-                    merge=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
+                    merge_to=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
                     colums=["NUTS3","PW DSV"]
                     key="properties.NUTS_ID"
                     field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                    alias=["From: " ,"NUTS_ID: ",  "Value: "]
 
         
                 m1= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
-                choropleth=folium.Choropleth(
-                geo_data=merge,
+                choropleth1=folium.Choropleth(
+                geo_data=merge_to,
                 name="choropleth",
-                data=merge,
+                data=merge_to,
                 columns=colums,
                 key_on=key,
-                fill_color='OrRd',
+                fill_color='Blues',
                 fill_opacity=0.7,
                 legend=True,
                 highlight=True,                   
                 ).geojson.add_to(m1)
 
                 folium.features.GeoJson(
-                                data=merge,
+                                data=merge_to,
                                 name='test',
                                 smooth_factor=2,
                                 style_function=lambda x: {'color':'black','fillColor':'transparent','weight':0.5},
@@ -882,7 +888,27 @@ elif selected == "Maps":
                                     """,
                                     max_width=800,),
                                         highlight_function=lambda x: {'weight':3,'fillColor':'grey'},
-                                    ).add_to(choropleth)
+                                    ).add_to(choropleth1)
+                if selected_country_to == selected_country_to :
+                    try:
+                        nuts_of_the_ZC=zip_code["NUTS3"].loc[zip_code["ZC to"]==selected_country_to]
+                        polygon = levl3['geometry'].loc[levl3["NUTS_ID"]==(nuts_of_the_ZC.tolist()[0])]
+                        centroid = polygon.centroid
+                        long=centroid.x.tolist()[0]
+                        lat=centroid.y.tolist()[0]
+                        folium.Marker([lat, long],icon=folium.Icon(color='blue', ), tooltip=f" To {selected_country_to}").add_to(m1)
+                    except Exception :
+                        print ("error")
+                Fullscreen(position="topleft").add_to(m1)
+                html_string = m1.get_root().render()
+                
+                folium_static(m1, height=700,width=1200)
+                
+                def create_download_button(html_string, filename):
+                        b64 = base64.b64encode(html_string.encode()).decode()
+                        href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
+                        return href
+                st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
             
         with col1:
             if st.checkbox('show DSV branches'):
@@ -898,19 +924,11 @@ elif selected == "Maps":
                         icon=folium.Icon(color='darkblue',icon_color='White', icon="info-sign"),
                         tooltip=dsv["Office Name"].iloc[k] + " , click for more information",
                         popup = folium.Popup(iframe, max_width=500)).add_to(m)
-
                     TagFilterButton(categories).add_to(m)
+                    
         
 
-        Fullscreen(position="topleft").add_to(m)
-        html_string = m.get_root().render()
         
-        folium_static(m, height=700,width=1200)
-        def create_download_button(html_string, filename):
-                b64 = base64.b64encode(html_string.encode()).decode()
-                href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
-                return href
-        st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
         
 
 
