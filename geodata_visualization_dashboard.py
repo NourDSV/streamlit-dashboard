@@ -701,13 +701,26 @@ elif selected == "Maps":
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
                 data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
                     (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+                m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
+                if st.checkbox('show DSV branches'):
+                    categories=dsv["Country"].unique().tolist()
+                    for k in range(len(dsv)):
+                        location = dsv["lat"].iloc[k],dsv["lon"].iloc[k]
+                        html= f"<span style='font-family:Arial;''><span style='color:#002664;'><b>{ dsv['Office Name'].iloc[k]} <br> { dsv['ZC'].iloc[k]}  </b> </span><br> <br>  &#9743; {dsv['Phone'].iloc[k]} <br> <span style='font-size:12px'> &#128343; </span> {dsv['Opening hours'].iloc[k]} </span>"
+                        iframe = branca.element.IFrame(html=html, width=250, height=140)
 
-                 
+                        folium.Marker(
+                        location=location,
+                        tags=[dsv["Country"].iloc[k]],
+                        icon=folium.Icon(color='darkblue',icon_color='White', icon="info-sign"),
+                        tooltip=dsv["Office Name"].iloc[k] + " , click for more information",
+                        popup = folium.Popup(iframe, max_width=500)).add_to(m)
+                    TagFilterButton(categories).add_to(m) 
         
             
     with col2:
         st.header('Map')
-        tab1,tab2,tab3=st.tabs(["Shipment map","Collecting map","See the top lines"])
+        tab1,tab2,tab3=st.tabs(["Shipment map","Collection map","See the top lines"])
         with tab1:
             ship_from = data['ZC from'].dropna().unique().tolist()
             selected_country = st.selectbox('Select Shipment from', ship_from)
@@ -755,7 +768,7 @@ elif selected == "Maps":
                 alias=["To: " ,"NUTS_ID: ",  "Value: "]
 
     
-            m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
+            
             choropleth=folium.Choropleth(
             geo_data=merge,
             name="choropleth",
@@ -909,22 +922,49 @@ elif selected == "Maps":
                         href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
                         return href
                 st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
-            
-        with col1:
-            if st.checkbox('show DSV branches'):
-                    categories=dsv["Country"].unique().tolist()
-                    for k in range(len(dsv)):
-                        location = dsv["lat"].iloc[k],dsv["lon"].iloc[k]
-                        html= f"<span style='font-family:Arial;''><span style='color:#002664;'><b>{ dsv['Office Name'].iloc[k]} <br> { dsv['ZC'].iloc[k]}  </b> </span><br> <br>  &#9743; {dsv['Phone'].iloc[k]} <br> <span style='font-size:12px'> &#128343; </span> {dsv['Opening hours'].iloc[k]} </span>"
-                        iframe = branca.element.IFrame(html=html, width=250, height=140)
+            with tab3:
+                col1,col2 = st.columns([1,1])
+                with col2:
 
-                        folium.Marker(
-                        location=location,
-                        tags=[dsv["Country"].iloc[k]],
-                        icon=folium.Icon(color='darkblue',icon_color='White', icon="info-sign"),
-                        tooltip=dsv["Office Name"].iloc[k] + " , click for more information",
-                        popup = folium.Popup(iframe, max_width=500)).add_to(m)
-                    TagFilterButton(categories).add_to(m)
+                    df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                    df6=df6.rename(columns={'Date' : 'Number of shipments'})
+                    df6=df6.sort_values(by="Number of shipments",ascending= False )
+                    df6=df6.head(10)
+                    df6=df6.sort_values(by="Number of shipments",ascending= False )
+                    df6 = df6.reset_index()
+                    fig = px.bar(df6, x='ZC to', y='Number of shipments', 
+                    color='Number of shipments', 
+                    color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+                    orientation='v',
+                    hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
+                    fig.update_layout(
+                        xaxis_title='',  
+                        yaxis_title='Shipments' )
+                    fig.update_coloraxes(showscale=False)
+                    st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+
+                with col1:
+                    df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                    df7=df7.rename(columns={'Date' : 'Number of shipments'})
+                    df7=df7.sort_values(by="Number of shipments",ascending= False )
+                    df7=df7.head(10)
+                    df7=df7.sort_values(by="Number of shipments",ascending= False )
+                    df7 = df7.reset_index()
+                    fig = px.bar(df7, x='ZC from', y='Number of shipments', 
+                    color='Number of shipments', 
+                    color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+                    orientation='v',
+                    hover_data={'kg': True, 'ldm': True})  
+                    fig.update_layout(
+                    xaxis_title='',  
+                    yaxis_title='Shipments' )
+                    fig.update_coloraxes(showscale=False)
+                    st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
+                    st.plotly_chart(fig, use_container_width=True)
+   
+            
                     
         
 
