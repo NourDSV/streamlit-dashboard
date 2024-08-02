@@ -417,13 +417,13 @@ elif selected == "Shipment Profile":
             else:
                 data = data  
 
-               
-                filtered_zc_to = data['ZC to'].unique()
-                selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
-                selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
-                selected_way = st.multiselect('Select way', options=data['Way'].unique())
             
-
+            filtered_zc_to = data['ZC to'].unique()
+            selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
+            selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
+            selected_way = st.multiselect('Select way', options=data['Way'].unique())
+            
+        
             data = data[
             (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
             (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
@@ -450,11 +450,12 @@ elif selected == "Shipment Profile":
             pivot["total"]=pivot.sum(axis=1)
             pivot["%"]=round(pivot["total"] /( pivot['total'].sum())*100,2)
             pivot.fillna(0, inplace=True)
+            pivot=pivot[pivot['total']!=0]
 
             
-            st.title('Pivot Table')
-            # st.dataframe(pivot,width=1000,height=1000)
             
+            # st.dataframe(pivot,width=1000,height=1000)
+            st.write('**Total**')
             bracket_columns = [col for col in pivot.columns if col not in ['total', '%']]
             
             pivot[bracket_columns] = pivot[bracket_columns].astype(int)
@@ -470,18 +471,33 @@ elif selected == "Shipment Profile":
             total_row.update({'Cntry from': 'Total', 'ZC from': '', 'Cntry to': '', 'ZC to': '', '%': pivot['%'].sum(), 'total': pivot['total'].sum()})
             total_row=pd.DataFrame([total_row])
             
+            
             cols = ['%','Cntry from', 'ZC from', 'Cntry to', 'ZC to'] + [col for col in pivot.columns if col not in ['Cntry from', 'ZC from', 'Cntry to', 'ZC to', '%', 'total']]+['total']
             total_row= total_row[cols]
             total_row.drop(columns=['ZC from', 'Cntry to', 'ZC to',"%"], inplace=True)
+            percentage=pivot.sum(numeric_only=True).to_dict()
+            percentage.update({'Cntry from': '%', 'ZC from': '', 'Cntry to': '', 'ZC to': '', '%': pivot['%'].sum(), 'total': pivot['total'].sum()})
+            percentage=pd.DataFrame([percentage])
+            
+            percentage= percentage[cols]
+            percentage.drop(columns=['ZC from', 'Cntry to', 'ZC to',"%"], inplace=True)
+            def custom_operation(x):
+                if isinstance(x, (int, float)):
+                    return round((x / total_row["total"].iloc[0]) * 100, 1)
+                return x
+            # percentage=(percentage/(total_row["total"].iloc[0])*100).round(1)
+            percentage=percentage.applymap(custom_operation)
+            
+            total_row= pd.concat([percentage,total_row])
             # pivot = pd.concat([pivot, pd.DataFrame([total_row])], ignore_index=True)
            
-            # st.dataframe(pd.DataFrame([total_row]))        
+                
             min_value = pivot['%'].min()
             max_value = pivot['%'].max()
             min_total = pivot['total'].min()
             max_total = pivot['total'].max()
-            min_value1 = total_row.drop(columns=["Cntry from", "total"]).min().min()
-            max_value1 = total_row.drop(columns=["Cntry from", "total"]).max().max()
+            min_value1 = percentage.drop(columns=["Cntry from", "total"]).min().min()
+            max_value1 = percentage.drop(columns=["Cntry from", "total"]).max().max()
             
             
             
@@ -492,7 +508,7 @@ elif selected == "Shipment Profile":
 
             
 
-            gb.configure_default_column(floatingFilter=True)
+            gb.configure_default_column(floatingFilter=True, resizable=False)
             gb.configure_column('Cntry from', headerName="Cntry from", filter="agSetColumnFilter", minWidth=98, maxWidth=300)
             gb.configure_column('ZC from', headerName="ZC from", filter="agSetColumnFilter", minWidth=90, maxWidth=300)
             gb.configure_column('Cntry to', headerName="Cntry to", filter="agSetColumnFilter", minWidth=85, maxWidth=300)
@@ -564,7 +580,8 @@ elif selected == "Shipment Profile":
                 }}
             """)
             gb1 = GridOptionsBuilder.from_dataframe(total_row)
-            gb1.configure_column('Cntry from', headerName="Bracket", minWidth=423, maxWidth=423)
+            gb1.configure_default_column( resizable=False)
+            gb1.configure_column('Cntry from', headerName="Bracket", minWidth=429, maxWidth=429)
             gb.configure_column('%', cellStyle=jscode)
             # gb.configure_column('total', cellStyle=jscode_total)
             for col in total_row.columns:
@@ -575,8 +592,12 @@ elif selected == "Shipment Profile":
             gridOptions1 = gb1.build()
             
             
-            AgGrid(total_row,height=63,fit_columns_on_grid_load=True ,allow_unsafe_jscode=True,gridOptions=gridOptions1)
+            AgGrid(total_row,height=91,fit_columns_on_grid_load=True ,allow_unsafe_jscode=True,gridOptions=gridOptions1)
             # Display the AgGrid table in Streamlit
+           
+            st.write('**Pivot table**')
+            st.write("Left filters will apply on the table, you can also: use the filters on top of the table, sort the columns, move the columns, ...")
+            
             response = AgGrid(
                 pivot,
                 gridOptions=gridOptions,
@@ -584,47 +605,121 @@ elif selected == "Shipment Profile":
                 enable_enterprise_modules=True,
                 allow_unsafe_jscode=True,
                 fit_columns_on_grid_load=True,
-                height=12000
+                height=500
+                 
             )
   
 elif selected == "Collection":
-    
     st.title('Collection')
     data = load_data()
-     
-    df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
-    df1=df1.rename(columns={'Date': 'Shipments'})
-    st.write(df1)
-    df2=df1.sum(numeric_only=True).to_frame().T
-    df2.index=["Total"]
-    st.dataframe(df2)
+    col1,col2=st.columns([1,7],gap="large")         
+    with col1:
+                st.write("**Filters option**")
+                selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
+                if selected_branch:
+                    data = data[data['Branch'].isin(selected_branch)]
+                else:
+                    data = data
+               
+                filtered_cntry_from = data['Cntry from'].unique()
+                selected_cntry_from = st.multiselect('Select Country From', filtered_cntry_from)
+                if selected_cntry_from:
+                    data = data[data['Cntry from'].isin(selected_cntry_from)]
+                else:
+                    data = data  
+
+                
+                filtered_zc_from = data['ZC from'].unique()
+                selected_zc_from = st.multiselect('Select Zip Code From', filtered_zc_from)
+
+                filtered_cntry_to = data['Cntry to'].unique()
+                selected_cntry_to = st.multiselect('Select Country To', filtered_cntry_to)
+                if selected_cntry_to:
+                    data = data[data['Cntry to'].isin(selected_cntry_to)]
+                else:
+                    data = data  
+
+               
+                filtered_zc_to = data['ZC to'].unique()
+                selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
+                selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
+                selected_way = st.multiselect('Select way', options=data['Way'].unique())
+                
+            
+                data = data[
+                (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+    with col2:        
+        col1,col2=st.columns([1,2])
+        with col1:
+        
+            
+            df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
+            df1=df1.rename(columns={'Date': 'Shipments'})
+            st.write(df1)
+            df2=df1.sum(numeric_only=True).to_frame().T
+            df2.index=["Total"]
+            st.dataframe(df2)
+
+        with col2:
+            data= data.dropna(subset=['ldm'])
+            df3=data.groupby('Date').agg({ 'ldm': 'sum' })
+            
+            def collection(x):
+                if x <= 0.5:
+                    return 0.5
+                elif x <= 1:
+                    return 1
+                elif x <= 2:
+                    return 2
+                elif x <= 3:
+                    return 3
+                elif x <= 4:
+                    return 4
+                elif x <= 5:
+                    return 5
+                elif x <= 6:
+                    return 6
+                elif x <= 7:
+                    return 7
+                elif x <= 8:
+                    return 8
+                elif x <= 9:
+                    return 9
+                elif x <= 10:
+                    return 10
+                elif 10<x <= 13.6:
+                    return "FTL"
+                elif x > 13.6:
+                    return "sup.FTL"
+                
+            df3['LDM'] = df3['ldm'].apply(collection)
+            
+            df3=df3.groupby('LDM').agg({'ldm': 'count' })
+            
+            df3=df3.rename(columns={'ldm': 'collection'})
+            df3=df3.reset_index()
+            df4=pd.DataFrame()
+            fig=px.bar(df3,x="LDM",y="collection", color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='collection')
+            fig.update_layout(
+                            title="nr collections per ldm  ",
+                            xaxis_title='',
+                            yaxis_title='',
+                            xaxis=dict(type='category'))
+            st.plotly_chart(fig)
+            
+            st.write(df1.describe())
+
 
            
 #########################
-            # gb = GridOptionsBuilder.from_dataframe(pivot)
-            # gb.configure_column("Cntry from", rowGroup=True, hide=False, headerName="Country From")
-            # gb.configure_column("ZC from", rowGroup=True, hide=False, headerName="Zip Code From")
-            # gb.configure_column("Cntry to", rowGroup=True, hide=False, headerName="Country To")
-            # gb.configure_column("ZC to", headerName="Zip Code To")
-            # gb.configure_column("total", headerName="Total")
-            # gb.configure_column("%", headerName="%")
-            # gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, aggFunc='sum')
-            # gridOptions = gb.build()
-            # response = AgGrid(
-            #     pivot,
-            #     gridOptions=gridOptions,
-            #     update_mode=GridUpdateMode.SELECTION_CHANGED,
-            #     fit_columns_on_grid_load=True,
-            #     enable_enterprise_modules=True,
-            #     allow_unsafe_jscode=True)
+           
 
-
-
-          
-
-            # col1, col2 = st.columns(2)
-            # with col1:
-        
             
             #     st.title("Seasonality")
             
@@ -702,6 +797,7 @@ elif selected == "Maps":
                 data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
                     (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
                 m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
+                m1= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
                 if st.checkbox('show DSV branches'):
                     categories=dsv["Country"].unique().tolist()
                     for k in range(len(dsv)):
@@ -715,16 +811,68 @@ elif selected == "Maps":
                         icon=folium.Icon(color='darkblue',icon_color='White', icon="info-sign"),
                         tooltip=dsv["Office Name"].iloc[k] + " , click for more information",
                         popup = folium.Popup(iframe, max_width=500)).add_to(m)
-                    TagFilterButton(categories).add_to(m) 
+                     
+
+                        folium.Marker(
+                        location=location,
+                        tags=[dsv["Country"].iloc[k]],
+                        icon=folium.Icon(color='darkblue',icon_color='White', icon="info-sign"),
+                        tooltip=dsv["Office Name"].iloc[k] + " , click for more information",
+                        popup = folium.Popup(iframe, max_width=500)).add_to(m1)
+                    TagFilterButton(categories).add_to(m)
+                    TagFilterButton(categories).add_to(m1) 
+
+        df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+        df6=df6.rename(columns={'Date' : 'Number of shipments'})
+        df6=df6.sort_values(by="Number of shipments",ascending= False )
+        df6=df6.head(10)
+        df6=df6.sort_values(by="Number of shipments",ascending= True )
+        df6 = df6.reset_index()
+        fig = px.bar(df6, y='ZC to', x='Number of shipments', 
+        color='Number of shipments', 
+        color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+        orientation='h',
+        hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
+        fig.update_layout(
+            xaxis_title='Shipments',  
+            yaxis_title='',
+            height=300,
+            title= "Top 10 delivery")
+        fig.update_coloraxes(showscale=False)
         
-            
+        st.plotly_chart(fig, use_container_width=True)
+                    
+
+        df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+        df7=df7.rename(columns={'Date' : 'Number of shipments'})
+        df7=df7.sort_values(by="Number of shipments",ascending= False )
+        df7=df7.head(10)
+        df7=df7.sort_values(by="Number of shipments",ascending= True )
+        df7 = df7.reset_index()
+        fig = px.bar(df7, y='ZC from', x='Number of shipments', 
+        color='Number of shipments', 
+        color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+        orientation='h',
+        hover_data={'kg': True, 'ldm': True})  
+        fig.update_layout(
+        xaxis_title='Shipments',  
+        yaxis_title='',
+        height=300,
+        title="Top 10 collection" )
+        fig.update_coloraxes(showscale=False)
+        st.plotly_chart(fig, height=50)
+   
     with col2:
         st.header('Map')
-        tab1,tab2,tab3=st.tabs(["Shipment map","Collection map","See the top lines"])
+        tab1,tab2=st.tabs(["Outbound from a single ZC","Inbound to a single ZC"])
         with tab1:
-            ship_from = data['ZC from'].dropna().unique().tolist()
-            selected_country = st.selectbox('Select Shipment from', ship_from)
-        
+            col3,col4=st.columns([1,9])
+            with col3:
+                ship_from = data['ZC from'].dropna().unique().tolist()
+                selected_country = st.selectbox('Select Shipments from:', ship_from)
+            with col4:
+                st.empty()
+
             data_to = data[(data['ZC from'] == selected_country)]
             
 
@@ -824,9 +972,12 @@ elif selected == "Maps":
             st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
 
             with tab2:
-                ship_to=data['ZC to'].dropna().unique().tolist()
-                selected_country_to = st.selectbox('Select Shipment to', ship_to)
-            
+                col3,col4=st.columns([1,9])
+                with col3:
+                    ship_to=data['ZC to'].dropna().unique().tolist()
+                    selected_country_to = st.selectbox('Select Shipments to:', ship_to)
+                with col4:
+                    st.empty()
                 data_to = data[(data['ZC to'] == selected_country_to)]
 
                 data_to=data_to.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
@@ -869,7 +1020,7 @@ elif selected == "Maps":
                     alias=["From: " ,"NUTS_ID: ",  "Value: "]
 
         
-                m1= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
+                
                 choropleth1=folium.Choropleth(
                 geo_data=merge_to,
                 name="choropleth",
@@ -922,48 +1073,9 @@ elif selected == "Maps":
                         href = f'<a href="data:text/html;base64,{b64}" download="{filename}">Download this the map </a>'
                         return href
                 st.markdown(create_download_button(html_string, "map.html"), unsafe_allow_html=True)
-            with tab3:
-                col1,col2 = st.columns([1,1])
-                with col2:
+            
 
-                    df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                    df6=df6.rename(columns={'Date' : 'Number of shipments'})
-                    df6=df6.sort_values(by="Number of shipments",ascending= False )
-                    df6=df6.head(10)
-                    df6=df6.sort_values(by="Number of shipments",ascending= False )
-                    df6 = df6.reset_index()
-                    fig = px.bar(df6, x='ZC to', y='Number of shipments', 
-                    color='Number of shipments', 
-                    color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-                    orientation='v',
-                    hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
-                    fig.update_layout(
-                        xaxis_title='',  
-                        yaxis_title='Shipments' )
-                    fig.update_coloraxes(showscale=False)
-                    st.write("<h5><b>Top 10 delivery</b></h5>", unsafe_allow_html=True)
-                    st.plotly_chart(fig, use_container_width=True)
                     
-
-                with col1:
-                    df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                    df7=df7.rename(columns={'Date' : 'Number of shipments'})
-                    df7=df7.sort_values(by="Number of shipments",ascending= False )
-                    df7=df7.head(10)
-                    df7=df7.sort_values(by="Number of shipments",ascending= False )
-                    df7 = df7.reset_index()
-                    fig = px.bar(df7, x='ZC from', y='Number of shipments', 
-                    color='Number of shipments', 
-                    color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-                    orientation='v',
-                    hover_data={'kg': True, 'ldm': True})  
-                    fig.update_layout(
-                    xaxis_title='',  
-                    yaxis_title='Shipments' )
-                    fig.update_coloraxes(showscale=False)
-                    st.write("<h5><b>Top 10 collection</b></h5>", unsafe_allow_html=True)
-                    st.plotly_chart(fig, use_container_width=True)
-   
             
                     
         
