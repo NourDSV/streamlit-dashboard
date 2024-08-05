@@ -49,6 +49,7 @@ def load_data():
         data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
         data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
         data["PW DSV"]=data["Payweight 330/1750"]
+        data['Date'] = data['Date'].dt.date
     return data
 
 def ldm_calc(data):
@@ -60,8 +61,8 @@ if 'page' not in st.session_state:
 
 selected = option_menu(
 menu_title=None,
-options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection"],
-icons=["bi-cloud-upload", "house", "graph-up","bi bi-globe-europe-africa"],
+options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis"],
+icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event"],
 menu_icon="cast",
 default_index=0,
 orientation="horizontal",
@@ -338,7 +339,7 @@ if selected == "Shipment Summary":
                 st.plotly_chart(fig, use_container_width=True)
                 
             with col4:
-                data['Month'] = data['Date'].dt.to_period('M')
+                data['Month'] = pd.to_datetime(data['Date']).dt.to_period('M')
                 df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
                 df4=df4.rename(columns={'Date': 'Shipments'})
                 df4['Month'] = df4['Month'].astype(str)
@@ -378,10 +379,7 @@ if selected == "Shipment Summary":
 
                 st.write(df5)
 
-            with col3:
-                st.write("Summary")
-                st.write("This shipment has bla bla....")
-
+            
 
 
             
@@ -609,8 +607,8 @@ elif selected == "Shipment Profile":
                  
             )
   
-elif selected == "Collection":
-    st.title('Collection')
+elif selected == "Collection Analysis":
+    st.title('Collection Analysis')
     data = load_data()
     col1,col2=st.columns([1,7],gap="large")         
     with col1:
@@ -655,17 +653,33 @@ elif selected == "Collection":
                 (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
                 (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
     with col2:        
-        col1,col2=st.columns([1,2])
+        col1,col2=st.columns([1,2.5], gap='large')
         with col1:
         
             
             df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
             df1=df1.rename(columns={'Date': 'Shipments'})
-            st.write(df1)
+            df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
+            st.dataframe(df6,use_container_width=True)
             df2=df1.sum(numeric_only=True).to_frame().T
             df2.index=["Total"]
-            st.dataframe(df2)
+            df2=df2.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
+            st.dataframe(df2,use_container_width=True)
+            df7=df1.describe()
+            df1.reset_index(inplace=True)
+            df1['Date'] = pd.to_datetime(df1['Date'])
+            df1['Is_Working_Day'] = df1['Date'].dt.weekday < 5
+            num_working_days = df1['Is_Working_Day'].sum()
+            total_days = len(df1)
+            average_working_days = num_working_days / total_days
+            df8= pd.DataFrame({
+                'Total collection days': [total_days],
+                'Working days': [num_working_days],
+                'Average collection per day': [average_working_days]})
+            df8.set_index('Total collection days', inplace=True)
+            st.dataframe(df8,use_container_width=True)
 
+            st.dataframe(df7) 
         with col2:
             data= data.dropna(subset=['ldm'])
             df3=data.groupby('Date').agg({ 'ldm': 'sum' })
@@ -707,13 +721,23 @@ elif selected == "Collection":
             df4=pd.DataFrame()
             fig=px.bar(df3,x="LDM",y="collection", color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='collection')
             fig.update_layout(
-                            title="nr collections per ldm  ",
+                            title="nbr collections per ldm  ",
                             xaxis_title='',
                             yaxis_title='',
                             xaxis=dict(type='category'))
             st.plotly_chart(fig)
+            data['Month'] = pd.to_datetime(data['Date']).dt.to_period('M')
+            df4=data.groupby('Month').agg({'kg': 'count' }).reset_index()
+            df4=df4.rename(columns={'kg': 'Collection'})
+            df4['Month'] = df4['Month'].astype(str)
+            fig_ship = px.line(df4, x='Month', y='Collection', markers=True, line_shape='spline')
+            fig_ship.update_layout(
+                        title='Seasonality of collection per month', 
+                        xaxis_title='Month',
+                        yaxis_title='Number of collection'
+                    )
+            st.plotly_chart(fig_ship)
             
-            st.write(df1.describe())
 
 
            
@@ -822,27 +846,6 @@ elif selected == "Maps":
                     TagFilterButton(categories).add_to(m)
                     TagFilterButton(categories).add_to(m1) 
 
-        df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-        df6=df6.rename(columns={'Date' : 'Number of shipments'})
-        df6=df6.sort_values(by="Number of shipments",ascending= False )
-        df6=df6.head(10)
-        df6=df6.sort_values(by="Number of shipments",ascending= True )
-        df6 = df6.reset_index()
-        fig = px.bar(df6, y='ZC to', x='Number of shipments', 
-        color='Number of shipments', 
-        color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-        orientation='h',
-        hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
-        fig.update_layout(
-            xaxis_title='Shipments',  
-            yaxis_title='',
-            height=300,
-            title= "Top 10 delivery")
-        fig.update_coloraxes(showscale=False)
-        
-        st.plotly_chart(fig, use_container_width=True)
-                    
-
         df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
         df7=df7.rename(columns={'Date' : 'Number of shipments'})
         df7=df7.sort_values(by="Number of shipments",ascending= False )
@@ -858,9 +861,32 @@ elif selected == "Maps":
         xaxis_title='Shipments',  
         yaxis_title='',
         height=300,
-        title="Top 10 collection" )
+        title="Top 10 collections ZC" )
         fig.update_coloraxes(showscale=False)
         st.plotly_chart(fig, height=50)
+
+        df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+        df6=df6.rename(columns={'Date' : 'Number of shipments'})
+        df6=df6.sort_values(by="Number of shipments",ascending= False )
+        df6=df6.head(10)
+        df6=df6.sort_values(by="Number of shipments",ascending= True )
+        df6 = df6.reset_index()
+        fig = px.bar(df6, y='ZC to', x='Number of shipments', 
+        color='Number of shipments', 
+        color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+        orientation='h',
+        hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
+        fig.update_layout(
+            xaxis_title='Shipments',  
+            yaxis_title='',
+            height=300,
+            title= "Top 10 deliveries ZC")
+        fig.update_coloraxes(showscale=False)
+        
+        st.plotly_chart(fig, use_container_width=True)
+                    
+
+        
    
     with col2:
         st.header('Map')
