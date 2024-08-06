@@ -608,7 +608,7 @@ elif selected == "Shipment Profile":
             )
   
 elif selected == "Collection Analysis":
-    st.title('Collection Analysis')
+    
     data = load_data()
     col1,col2=st.columns([1,7],gap="large")         
     with col1:
@@ -652,15 +652,18 @@ elif selected == "Collection Analysis":
                 (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
                 (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
                 (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
-    with col2:        
-        col1,col2=st.columns([1,2.5], gap='large')
+    with col2:
+        st.header('Collection Analysis')        
+        col1,col2,col3=st.columns([1,1.1,1.8],gap='medium')
         with col1:
         
             
             df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
             df1=df1.rename(columns={'Date': 'Shipments'})
             df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
-            st.dataframe(df6,use_container_width=True)
+            st.dataframe(df6,use_container_width=True,height=510)
+             
+        with col2:
             df2=df1.sum(numeric_only=True).to_frame().T
             df2.index=["Total"]
             df2=df2.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
@@ -671,72 +674,75 @@ elif selected == "Collection Analysis":
             df1['Is_Working_Day'] = df1['Date'].dt.weekday < 5
             num_working_days = df1['Is_Working_Day'].sum()
             total_days = len(df1)
-            average_working_days = num_working_days / total_days
+            average_working_days = num_working_days / total_days *5
             df8= pd.DataFrame({
                 'Total collection days': [total_days],
                 'Working days': [num_working_days],
-                'Average collection per day': [average_working_days]})
+                'Average collection per week': [average_working_days]})
             df8.set_index('Total collection days', inplace=True)
             st.dataframe(df8,use_container_width=True)
 
-            st.dataframe(df7) 
-        with col2:
-            data= data.dropna(subset=['ldm'])
-            df3=data.groupby('Date').agg({ 'ldm': 'sum' })
-            
-            def collection(x):
-                if x <= 0.5:
-                    return 0.5
-                elif x <= 1:
-                    return 1
-                elif x <= 2:
-                    return 2
-                elif x <= 3:
-                    return 3
-                elif x <= 4:
-                    return 4
-                elif x <= 5:
-                    return 5
-                elif x <= 6:
-                    return 6
-                elif x <= 7:
-                    return 7
-                elif x <= 8:
-                    return 8
-                elif x <= 9:
-                    return 9
-                elif x <= 10:
-                    return 10
-                elif 10<x <= 13.6:
-                    return "FTL"
-                elif x > 13.6:
-                    return "sup.FTL"
+            st.dataframe(df7)
+
+            with col3:
+                data= data.dropna(subset=['ldm'])
+                df3=data.groupby('Date').agg({ 'ldm': 'sum' })
                 
-            df3['LDM'] = df3['ldm'].apply(collection)
-            
-            df3=df3.groupby('LDM').agg({'ldm': 'count' })
-            
-            df3=df3.rename(columns={'ldm': 'collection'})
-            df3=df3.reset_index()
-            df4=pd.DataFrame()
-            fig=px.bar(df3,x="LDM",y="collection", color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='collection')
-            fig.update_layout(
-                            title="nbr collections per ldm  ",
-                            xaxis_title='',
-                            yaxis_title='',
-                            xaxis=dict(type='category'))
-            st.plotly_chart(fig)
-            data['Month'] = pd.to_datetime(data['Date']).dt.to_period('M')
-            df4=data.groupby('Month').agg({'kg': 'count' }).reset_index()
-            df4=df4.rename(columns={'kg': 'Collection'})
-            df4['Month'] = df4['Month'].astype(str)
-            fig_ship = px.line(df4, x='Month', y='Collection', markers=True, line_shape='spline')
-            fig_ship.update_layout(
-                        title='Seasonality of collection per month', 
-                        xaxis_title='Month',
-                        yaxis_title='Number of collection'
-                    )
-            st.plotly_chart(fig_ship)
+                def collection(x):
+                    if x <= 0.5:
+                        return 0.5
+                    elif x <= 1:
+                        return 1
+                    elif x <= 2:
+                        return 2
+                    elif x <= 3:
+                        return 3
+                    elif x <= 4:
+                        return 4
+                    elif x <= 5:
+                        return 5
+                    elif x <= 6:
+                        return 6
+                    elif x <= 7:
+                        return 7
+                    elif x <= 8:
+                        return 8
+                    elif x <= 9:
+                        return 9
+                    elif x <= 10:
+                        return 10
+                    elif 10<x <= 13.6:
+                        return "FTL"
+                    elif x > 13.6:
+                        return "sup.FTL"
+                    
+                df3['LDM'] = df3['ldm'].apply(collection)
+                
+                df3=df3.groupby('LDM').agg({'ldm': 'count' })
+                
+                df3=df3.rename(columns={'ldm': 'collection'})
+                df3=df3.reset_index()
+                df4=pd.DataFrame()
+                fig=px.bar(df3,x="LDM",y="collection", color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='collection')
+                fig.update_layout(
+                                title="Number of collections per ldm  ",
+                                xaxis_title='',
+                                yaxis_title='',
+                                xaxis=dict(type='category'),
+                            height=280)
+                st.plotly_chart(fig)
+                data['Month'] = pd.to_datetime(data['Date']).dt.to_period('M')
+                df4=data.groupby('Month').agg({'kg': 'count' }).reset_index()
+                df4=df4.rename(columns={'kg': 'Collection'})
+                df4['Month'] = df4['Month'].astype(str)
+                fig_ship = px.line(df4, x='Month', y='Collection', markers=True, line_shape='spline')
+                fig_ship.update_layout(
+                            title='Seasonality of collection per month', 
+                            xaxis_title='Month',
+                            yaxis_title='Number of collection',
+                            height=290
+                        )
+                st.plotly_chart(fig_ship)
             
 
 
@@ -745,68 +751,12 @@ elif selected == "Collection Analysis":
            
 
             
-            #     st.title("Seasonality")
-            
-            
-
-            #     data['Month'] = data['Date'].dt.to_period('M')
-            #     df4=data.groupby('Month').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' }).reset_index()
-            #     df4=df4.rename(columns={'Date': 'Shipments'})
-            #     df4['Month'] = df4['Month'].astype(str)
-                
-            #     st.write("")
-            #     st.dataframe(df4)
-            #     metric = st.selectbox("Select fig to show",['Shipments', 'kg', 'ldm', 'PW DSV'])
-            # with col2:
-
-            #         fig_ship = px.line(df4, x='Month', y='Shipments', markers=True)
-            #         fig_ship.update_layout(
-            #             title='Monthly Shipments', 
-            #             xaxis_title='Month',
-            #             yaxis_title='Number of Shipments'
-            #         )
-
-            #         fig_kg = px.line(df4, x='Month', y='kg', markers=True)
-            #         fig_kg.update_layout(title=' Kg per month', xaxis_title='Month', yaxis_title='KG')
-
-            #         fig_ldm = px.line(df4, x='Month', y='ldm', markers=True)
-            #         fig_ldm.update_layout(title=' ldm per month', xaxis_title='Month', yaxis_title='Meters')
-
-            #         fig_pw = px.line(df4, x='Month', y='PW DSV', markers=True)
-            #         fig_pw.update_layout(title=' Pay Weight per month', xaxis_title='Month', yaxis_title='Kg')
-
-            #         if metric == 'Shipments':
-            #             st.plotly_chart(fig_ship)
-            #         elif metric == 'kg':
-            #             st.plotly_chart(fig_kg)
-            #         elif metric == 'ldm':
-            #             st.plotly_chart(fig_ldm)
-            #         elif metric == 'PW DSV':
-            #             st.plotly_chart(fig_pw)
-
-
-    # with col2:
-    #         st.title("  :bar_chart: Shipment per bracket ")
-    #         my_list = sorted(data["Bracket"].tolist())
-    #         count = Counter(my_list)
-    #         total_items = sum(count.values())
-    #         count_list = list(count.items())
-    #         count_percentage_list = [(item, count, f"{round((count / total_items) * 100, 2)}%") for item, count in count.items()]
-    #         df = pd.DataFrame(count_percentage_list, columns=['bracket', 'Count', 'percentage'])
-    #         fig = px.bar(df, x='bracket', y='Count',color_discrete_sequence=['#002664'], text='percentage')
-    #         fig.update_layout(
-                
-    #             xaxis_title='Bracket',
-    #             yaxis_title='Count',
-    #             xaxis=dict(type='category')  
-    #         )
-    #         st.plotly_chart(fig)
-    #         st.title("")
-    #         st.table(df.describe())
+          
 
 
 # Page for basic data analysis
 elif selected == "Maps":
+    
     st.write("**Filters option**")
     
     data = load_data()
@@ -902,7 +852,7 @@ elif selected == "Maps":
             data_to = data[(data['ZC from'] == selected_country)]
             
 
-            data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
+            data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].count()
             data_to=pd.merge(data_to,zip_code,on='ZC to',how="left")
             data_to['count'] = data_to.groupby('ZC to')['ZC to'].transform('count')
             data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
@@ -916,7 +866,7 @@ elif selected == "Maps":
                 colums=["nuts0","PW DSV"]
                 key="properties.ISO2"
                 field=["NAME","PW DSV"]
-                alias=["To : ", "Value: "]
+                alias=["To : ", "Number of shipments: "]
                 
             
             elif selected_level== "Nuts1":
@@ -925,21 +875,21 @@ elif selected == "Maps":
                 colums=["nuts1","PW DSV"]
                 key="properties.NUTS_ID"
                 field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                alias=["To: " ,"NUTS_ID: ",  "Number of shipments: "]
             elif selected_level== "Nuts2":
                 data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
                 merge=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
                 colums=["nuts2","PW DSV"]
                 key="properties.NUTS_ID"
                 field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                alias=["To: " ,"NUTS_ID: ",  "Number of shipments: "]
             elif selected_level== "Nuts3":
                 data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
                 merge=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
                 colums=["NUTS3","PW DSV"]
                 key="properties.NUTS_ID"
                 field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                alias=["To: " ,"NUTS_ID: ",  "Value: "]
+                alias=["To: " ,"NUTS_ID: ",  "Number of shipments: "]
 
     
             
@@ -1006,7 +956,7 @@ elif selected == "Maps":
                     st.empty()
                 data_to = data[(data['ZC to'] == selected_country_to)]
 
-                data_to=data_to.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
+                data_to=data_to.groupby(["ZC from"],as_index=False)["PW DSV"].count()
                 data_to=pd.merge(data_to,zip_code,right_on='ZC to',left_on="ZC from",how="left")
                 data_to['count'] = data_to.groupby('ZC from')['ZC from'].transform('count')
                 data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
@@ -1020,7 +970,7 @@ elif selected == "Maps":
                     colums=["nuts0","PW DSV"]
                     key="properties.ISO2"
                     field=["NAME","PW DSV"]
-                    alias=["From : ", "Value: "]
+                    alias=["From : ", "Number of shipments: "]
                     
                 
                 elif selected_level== "Nuts1":
@@ -1029,21 +979,21 @@ elif selected == "Maps":
                     colums=["nuts1","PW DSV"]
                     key="properties.NUTS_ID"
                     field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["From: " ,"NUTS_ID: ",  "Value: "]
+                    alias=["From: " ,"NUTS_ID: ",  "Number of shipments: "]
                 elif selected_level== "Nuts2":
                     data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
                     merge_to=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
                     colums=["nuts2","PW DSV"]
                     key="properties.NUTS_ID"
                     field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["From: " ,"NUTS_ID: ",  "Value: "]
+                    alias=["From: " ,"NUTS_ID: ",  "Number of shipments: "]
                 elif selected_level== "Nuts3":
                     data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
                     merge_to=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
                     colums=["NUTS3","PW DSV"]
                     key="properties.NUTS_ID"
                     field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["From: " ,"NUTS_ID: ",  "Value: "]
+                    alias=["From: " ,"NUTS_ID: ",  "Number of shipments: "]
 
         
                 
