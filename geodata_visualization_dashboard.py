@@ -36,21 +36,24 @@ st.set_page_config(layout='wide')
 # @st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
+    
     if uploaded_file is not None:
         data = pd.read_excel(uploaded_file)
+        required_columns = ['Cntry from', 'ZC from', 'ZC to','Branch','Product','Way','Cntry to',"Payweight 330/1750"]
+        missing_columns = [col for col in required_columns if col not in data.columns]
         
-    else:
-        data = pd.DataFrame()
-    if not data.empty:
-        country_codes = ['AD', 'ME', 'RU', 'XK', 'UA', 'BY', 'BA']
-        for code in country_codes:
-            data.loc[data['ZC from'].str[:2] == code, 'ZC from'] = code
-            data.loc[data['ZC to'].str[:2] == code, 'ZC to'] = code
-        data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
-        data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
-        data["PW DSV"]=data["Payweight 330/1750"]
-        data['Date'] = data['Date'].dt.date
-    return data
+        if missing_columns:
+            st.error(f"Please make sure your data has the correct columns. Missing columns: {', '.join(missing_columns)}", icon="🚨")
+        else:
+            country_codes = ['AD', 'ME', 'RU', 'XK', 'UA', 'BY', 'BA']
+            for code in country_codes:
+                data.loc[data['ZC from'].str[:2] == code, 'ZC from'] = code
+                data.loc[data['ZC to'].str[:2] == code, 'ZC to'] = code
+            data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
+            data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
+            data["PW DSV"]=data["Payweight 330/1750"]
+            data['Date'] = data['Date'].dt.date
+            return data
 
 def ldm_calc(data):
     data["ldm"]=data["kg"]*1
@@ -101,6 +104,7 @@ if selected == "Shipment Summary":
         
         
         data = load_data()
+
         
         col1,col2=st.columns([1,7],gap="large")         
         with col1:
@@ -678,7 +682,7 @@ elif selected == "Collection Analysis":
             df8= pd.DataFrame({
                 'Total collection days': [total_days],
                 'Working days': [num_working_days],
-                'Average collection per week': [average_working_days]})
+                'Collection per week': [average_working_days]})
             df8.set_index('Total collection days', inplace=True)
             st.dataframe(df8,use_container_width=True)
 
