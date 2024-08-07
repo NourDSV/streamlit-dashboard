@@ -33,7 +33,7 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-@st.cache_data
+# @st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     
