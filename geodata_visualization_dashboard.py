@@ -54,7 +54,8 @@ def load_data():
             data["PW DSV"]=data["Payweight 330/1750"]
             data['Date'] = data['Date'].dt.date
             return data
-
+    else:
+        st.error("please upload your data first",icon="🚨")
 def ldm_calc(data):
     data["ldm"]=data["kg"]*1
     return data
