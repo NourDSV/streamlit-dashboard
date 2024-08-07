@@ -33,7 +33,7 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-# @st.cache_data
+@st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     
@@ -59,10 +59,10 @@ def ldm_calc(data):
     data["ldm"]=data["kg"]*1
     return data
 
-if 'page' not in st.session_state:
-    st.session_state.page = 'Upload data'
+if 'selected' not in st.session_state:
+    st.session_state.selected = "Upload data"
 
-selected = option_menu(
+selected_option  = option_menu(
 menu_title=None,
 options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis"],
 icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event"],
@@ -71,9 +71,11 @@ default_index=0,
 orientation="horizontal",
 )
 
-st.session_state.page = selected
+if selected_option  != st.session_state.selected:
+     st.session_state.selected = selected_option 
+
 # Page for uploading and viewing the Excel file
-if selected == "Upload data":
+if st.session_state.selected == "Upload data":
     
     st.title('Upload your data')
     uploaded_file = st.file_uploader("Put your shipment profile here", type=['xlsx'])
@@ -100,7 +102,7 @@ if selected == "Upload data":
     
 
 
-if selected == "Shipment Summary":
+if st.session_state.selected == "Shipment Summary":
         
         
         data = load_data()
@@ -389,7 +391,7 @@ if selected == "Shipment Summary":
             
 
 
-elif selected == "Shipment Profile":
+elif st.session_state.selected == "Shipment Profile":
         
         data = load_data()
         col1,col2=st.columns([1,7],gap="large")         
@@ -611,7 +613,7 @@ elif selected == "Shipment Profile":
                  
             )
   
-elif selected == "Collection Analysis":
+elif st.session_state.selected == "Collection Analysis":
     
     data = load_data()
     col1,col2=st.columns([1,7],gap="large")         
@@ -759,7 +761,7 @@ elif selected == "Collection Analysis":
 
 
 # Page for basic data analysis
-elif selected == "Maps":
+elif st.session_state.selected == "Maps":
     
     st.write("**Filters option**")
     
@@ -1065,5 +1067,4 @@ elif selected == "Maps":
 
 
 
-if 'uploaded_file' not in st.session_state:
-     st.session_state['uploaded_file'] = None
+
