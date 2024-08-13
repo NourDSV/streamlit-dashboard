@@ -8,3 +8,4 @@ streamlit-folium
 openpyxl
 streamlit_option_menu
 streamlit-aggrid
+xlsxwriter
