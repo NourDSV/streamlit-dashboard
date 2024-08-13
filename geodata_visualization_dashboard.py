@@ -365,7 +365,7 @@ if st.session_state.selected == "Shipment Summary":
                     ).geojson.add_to(m)
                 tooltip = GeoJsonTooltip(
                     fields=colums,
-                    aliases=["Delivery country", "Total pay weight"],
+                    aliases=["Delivery country", "Number of shipments"],
                     localize=True
                 )
                 choropleth.add_child(tooltip)
