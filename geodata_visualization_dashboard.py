@@ -373,7 +373,7 @@ if st.session_state.selected == "Shipment Summary":
             
 
                 
-                data2=data.groupby(["ZC from"],as_index=False)["PW DSV"].sum()
+                data2=data.groupby(["ZC from"],as_index=False)["PW DSV"].count()
                 data2=pd.merge(data2,zip_code,right_on='ZC to',left_on="ZC from")
                 data2['count'] = data2.groupby('ZC from')['ZC from'].transform('count')
                 data2["PW DSV"]=(data2["PW DSV"])/data2["count"]
@@ -397,7 +397,7 @@ if st.session_state.selected == "Shipment Summary":
                         fill=True,
                         fill_color="red",
                         fill_opacity=1,
-                        tooltip=f'Collecting country: {merge2["NAME"].iloc[k]} <br> PayWeight: {merge2["PW DSV"].iloc[k]}'
+                        tooltip=f'Collecting country: {merge2["NAME"].iloc[k]} <br> Shipments: {merge2["PW DSV"].iloc[k]}'
                     ).add_to(m)
             
                 
