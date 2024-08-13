@@ -1,20 +1,25 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import geopandas as gpd
+import numpy as np
 import folium
+import json
 from folium.features import GeoJsonTooltip
 import branca
 from folium.plugins import TagFilterButton
+from branca.colormap import linear
 from streamlit_folium import folium_static
 from folium.plugins import Fullscreen
 from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import streamlit.components.v1 as components
 import base64
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 from streamlit_option_menu import option_menu
-from io import BytesIO
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -28,87 +33,33 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-@st.cache_data
+# @st.cache_data
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     
     if uploaded_file is not None:
         data = pd.read_excel(uploaded_file)
-        data=data[['ZC from','ZC to','Date',"kg","ldm","m3","Branch"]]
-
-        data[['kg', 'ldm', 'm3']] = data[['kg', 'ldm', 'm3']].fillna(0)
-        data=data[~(data["ZC from"].isna() | data["ZC to"].isna() | ( (( (data["kg"] == 0)) & ( (data["ldm"] == 0)) & ( (data["m3"] == 0)))))]
+        required_columns = ['Cntry from', 'ZC from', 'ZC to','Branch','Product','Way','Cntry to',"Payweight 330/1750"]
+        missing_columns = [col for col in required_columns if col not in data.columns]
         
-        country_codes = ['AD', 'ME', 'RU', 'XK', 'UA', 'BY', 'BA']
-        for code in country_codes:
-            data.loc[data['ZC from'].str[:2] == code, 'ZC from'] = code
-            data.loc[data['ZC to'].str[:2] == code, 'ZC to'] = code
-        data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
-        data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
-        
-        data['Date'] = data['Date'].apply(lambda x: pd.to_datetime(x) if pd.notnull(x) and x != '' else x)
-        data['Date'] = data['Date'].dt.date
-        return data
+        if missing_columns:
+            st.error(f"Please make sure your data has the correct columns. Missing columns: {', '.join(missing_columns)}", icon="🚨")
+        else:
+            country_codes = ['AD', 'ME', 'RU', 'XK', 'UA', 'BY', 'BA']
+            for code in country_codes:
+                data.loc[data['ZC from'].str[:2] == code, 'ZC from'] = code
+                data.loc[data['ZC to'].str[:2] == code, 'ZC to'] = code
+            data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
+            data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
+            data["PW DSV"]=data["Payweight 330/1750"]
+            data['Date'] = data['Date'].dt.date
+            return data
     else:
         st.error("please upload your data first",icon="🚨")
-def process_data(data, selected_dsv_country, selected_parcel, selected_grp, selected_ltl, pw_ldm, pw_cbm,factor,input_factor):
-      
-             
-    
-    data['Cntry from'] = data['ZC from'].str[:2]
-    data['Cntry to'] = data['ZC to'].str[:2]
-
-    
-    data['Way'] = data.apply(lambda row: 'Exp' if row['Cntry from'] == selected_dsv_country and row['Cntry to'] != selected_dsv_country
-                            else 'Imp' if row['Cntry to'] == selected_dsv_country and row['Cntry from'] != selected_dsv_country
-                            else 'Dom' if row['Cntry from'] == row['Cntry to'] == selected_dsv_country
-                            else 'X-trade', axis=1)
-
-    
-    data['kg'] = pd.to_numeric(data['kg'], errors='coerce')
-    data['Product'] = data['kg'].apply(
-        lambda x: 'Parcel' if x <= float(selected_parcel)
-        else 'GRP' if x <= float(selected_grp)
-        else 'LTL' if x <= float(selected_ltl)
-        else 'FTL'
-    )
-
-    
-    data['ldm'] = pd.to_numeric(data['ldm'], errors='coerce')
-    data['m3'] = pd.to_numeric(data['m3'], errors='coerce')
-    if factor=="Yes":
-        if input_factor != 1750:
-            data["ldm_eq"]=data.apply(lambda row: max(row['ldm'], row['kg'] / float(input_factor)), axis=1)
-            data["ldm"]=data["ldm_eq"]
-            st.session_state.factor_phrase= (f" |kg/ldm factor ={st.session_state.input_factor}")
-    else:
-        data=data
-        st.session_state.factor_phrase= " "
-    
-    data['PW DSV'] = data.apply(lambda row: max(row['kg'], row['ldm'] * float(pw_ldm), row['m3'] * float(pw_cbm)), axis=1)
-
-    
-    data['Bracket'] = data['PW DSV'].apply(
-        lambda x: 30 if 0 < x <= 30
-        else 100 if 30 < x <= 100
-        else 250 if x <= 250
-        else 500 if x <= 500
-        else 1000 if x <= 1000
-        else 2500 if x <= 2500
-        else 5000 if x <= 5000
-        else 7500 if x <= 7500
-        else 10000 if x <= 10000
-        else 15000 if x <= 15000
-        else 20000 if x <= 20000
-        else 25500
-    )
-    
-
-
+def ldm_calc(data):
+    data["ldm"]=data["kg"]*1
     return data
-    
-dsv_country=["AL","AT","BA","BE","BG","CH","CZ","DE","DK","EE","ES","FI","FR","GB","GR","HR","HU","IE","IT","LT","LU","LV","ME","MK","NL","NO","PL","PT","RO","RS","SE","SI","SK","TR","NI","XK"]
-brakets=["30","100","250","500","1000","2500","5000","7500","10000","15000","20000","25000"]
+
 if 'selected' not in st.session_state:
     st.session_state.selected = "Upload data"
 
@@ -126,109 +77,36 @@ if selected_option  != st.session_state.selected:
 
 # Page for uploading and viewing the Excel file
 if st.session_state.selected == "Upload data":
+    
     st.title('Upload your data')
-    uploaded_file = st.file_uploader("Put your data here", type=['xlsx'])
-    
-    col_empty=st.empty()
-    form_empty=st.empty()
-    with col_empty:
-        col1,col2=st.columns([1,3],gap='large')
-        with col1:
+    uploaded_file = st.file_uploader("Put your shipment profile here", type=['xlsx'])
+    if uploaded_file is not None:
+        st.session_state['uploaded_file'] = uploaded_file
+        
+        data = pd.read_excel(uploaded_file)
+        if 'Date' in data.columns:
+            data['Date'] = data['Date'].apply(lambda x: pd.to_datetime(x) if pd.notnull(x) and x != '' else x)
+        st.write(data)
+        has_ldm = st.radio("Does your shipment profile have the 'Ldm' data ?", ("Yes", "No"))
+        if has_ldm == "No":
             
-                st.write("Here's an example of how you data should look like")
-                st.image("Capture d’écran 2024-08-08 093822.png")
-        with col2:
-            if uploaded_file is not None:
-                st.session_state['uploaded_file'] = uploaded_file
-                
-                data = pd.read_excel(uploaded_file)
-                
-                
-                data=data[['ZC from','ZC to','Date',"kg","ldm","m3","Branch"]]
-                st.write("")
-                st.dataframe(data,height=250, use_container_width=True)
-    
-    if uploaded_file is not None:        
-        
-    
-        with form_empty:
-            with st.form("filters"):
-                st.write("**Basic options**")
-                col3,col35,col4,col5,col6=st.columns([2,1.5,2,2,2],gap="medium")
-                with col3:
-                    st.write("Some information depends on country perspective, select your country:")
-                    st.session_state.selected_dsv_country=st.selectbox("",dsv_country,index=dsv_country.index("FR"))
-                with col35:
-                    st.write("Choose how payweight should be calculated:")
-                    col01,col02=st.columns([1,1])
-                    with col01:
-                        st.session_state.pw_ldm=st.number_input("kg/ldm :",1750)
-                    with col02:
-                        st.session_state.pw_cbm=st.number_input("kg/cbm:",330)
-                with col4:
-                    st.write("Define parcel's weight(Kg), up to:")
-                    st.session_state.selected_parcel=st.select_slider("",brakets,value="30")
-                with col5:
-                    st.write("Define groupage's weight(Kg), up to:")
-                    st.session_state.selected_grp=st.select_slider("",brakets,value="2500")
-                with col6:
-                    st.write("Define LTL's weight(Kg), up to:")
-                    st.session_state.selected_ltl=st.select_slider("",brakets,value="20000")
-                
-                st.write("")
-                st.write("**Advanced option(use only if you know what you are doing)**")    
-                st.session_state.factor=st.radio("In case of  missing ldm or cbm, you can apply a kg/ldm factor. Do you want to apply one ?",["No","Yes"])
-                col8,col9=st.columns([1,8])
-                with col8:
-                    st.session_state.input_factor = st.text_input("If yes, enter your kg/ldm factor:","1750")
-                col11,col12,col13=st.columns([1.5,1,1])
-                with col12:
-                        st.write("")
-                        submitted = st.form_submit_button("Apply modifications")
-        
-                    
-            if submitted:
-                col_empty.empty()
-                form_empty.empty()
-                with col_empty:
-                    processed_data =process_data(load_data(), st.session_state.selected_dsv_country, st.session_state.selected_parcel, st.session_state.selected_grp, st.session_state.selected_ltl, st.session_state.pw_ldm, st.session_state.pw_cbm,st.session_state.factor,st.session_state.input_factor)
-                    processed_data=processed_data[~(processed_data["ZC from"].isna() | processed_data["ZC to"].isna() | ( ((processed_data["kg"].isna()| (processed_data["kg"] == 0)) & (processed_data["ldm"].isna()| (processed_data["ldm"] == 0)) & (processed_data["m3"].isna()| (processed_data["m3"] == 0)))))]
-                    st.dataframe(processed_data ,use_container_width=True)
-                    st.session_state.processed_data = processed_data
-        
-                    
-            else:
-                st.session_state.processed_data =process_data(load_data(), st.session_state.selected_dsv_country, st.session_state.selected_parcel, st.session_state.selected_grp, st.session_state.selected_ltl, st.session_state.pw_ldm, st.session_state.pw_cbm,st.session_state.factor,st.session_state.input_factor)
-                st.session_state.processed_data =st.session_state.processed_data[~(st.session_state.processed_data["ZC from"].isna() | st.session_state.processed_data["ZC to"].isna() | ( ((st.session_state.processed_data["kg"].isna()| (st.session_state.processed_data["kg"] == 0)) & (st.session_state.processed_data["ldm"].isna()| (st.session_state.processed_data["ldm"] == 0)) & (st.session_state.processed_data["m3"].isna()| (st.session_state.processed_data["m3"] == 0)))))]
-        removed_rows=data[(data["ZC from"].isna() | data["ZC to"].isna() |( ( ((data["kg"] == 0)|data["kg"].isna()) &  ((data["ldm"] == 0)|data["ldm"].isna()) &  ((data["m3"] == 0)|data["m3"].isna()))))]
-        if not removed_rows.empty:
-            lengh=len(removed_rows)
-            st.write(f"{lengh} rows have been removed due to missing data:")
-            st.dataframe(removed_rows, use_container_width=True)
-            def to_excel(df):
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Sheet1')
-                return output.getvalue()
+                if 'kg' in data.columns:
+                    ldm_calc(data)
+                    st.write("this is your new data")
+                    st.write(data)
+                else:
+                    st.write("error can't calculate ldm because kg does not existe ")
 
-            # Convert the cleaned DataFrame to an Excel file
-            excel_data = to_excel(removed_rows)
 
-            # Download button
-            st.download_button(
-                label="Download missing rows as Excel",
-                data=excel_data,
-                file_name='missing_data.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
+
+    
+    
 
 
 if st.session_state.selected == "Shipment Summary":
         
-        data=load_data()
-        data = st.session_state.processed_data
-        data["PW DSV"] = pd.to_numeric(data["PW DSV"], errors='coerce')
-        data= data[data["PW DSV"].notna()]
+        
+        data = load_data()
 
         
         col1,col2=st.columns([1,7],gap="large")         
@@ -276,7 +154,6 @@ if st.session_state.selected == "Shipment Summary":
         
         with col2:
             st.header("Shipment summary")
-            st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")
             dom=data["ZC from"][data["Way"]=="Dom"].count()
             exp=data["ZC from"][data["Way"]=="Exp"].count()
             imp=data["ZC from"][data["Way"]=="Imp"].count()
@@ -334,11 +211,11 @@ if st.session_state.selected == "Shipment Summary":
                 
                 
             with col4:
-                
+                #  removing the decimal after the comma for the column PW
                 data["PW DSV"]=data["PW DSV"].astype(int)
 
                 # creating the folium map
-                data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].count()
+                data1=data.groupby(["ZC to"],as_index=False)["PW DSV"].sum()
                 data1=pd.merge(data1,zip_code,on='ZC to',how="left")
                 data1['count'] = data1.groupby('ZC to')['ZC to'].transform('count')
                 data1["PW DSV"]=(data1["PW DSV"])/data1["count"]
@@ -517,7 +394,7 @@ if st.session_state.selected == "Shipment Summary":
 
 elif st.session_state.selected == "Shipment Profile":
         
-        data = st.session_state.processed_data
+        data = load_data()
         col1,col2=st.columns([1,7],gap="large")         
         with col1:
             st.write("**Filters option**")
@@ -568,14 +445,13 @@ elif st.session_state.selected == "Shipment Profile":
                 except (ValueError, TypeError):
                     return False
             st.header("Shipment Profile")
-            st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")
             data.dropna(subset=['Bracket'])
             data=data[data['Bracket'].apply(can_convert_to_int)]
             
              
             
             data['Bracket'] = data['Bracket'].astype(str)
-            pivot=pd.pivot_table(data,values="PW DSV",index=["Cntry from","ZC from","Cntry to","ZC to"],columns="Bracket",aggfunc="count")
+            pivot=pd.pivot_table(data,values="Cost",index=["Cntry from","ZC from","Cntry to","ZC to"],columns="Bracket",aggfunc="count")
             pivot["total"]=pivot.sum(axis=1)
             pivot["%"]=round(pivot["total"] /( pivot['total'].sum())*100,2)
             pivot.fillna(0, inplace=True)
@@ -740,7 +616,7 @@ elif st.session_state.selected == "Shipment Profile":
   
 elif st.session_state.selected == "Collection Analysis":
     
-    data = st.session_state.processed_data
+    data = load_data()
     col1,col2=st.columns([1,7],gap="large")         
     with col1:
                 st.write("**Filters option**")
@@ -784,8 +660,7 @@ elif st.session_state.selected == "Collection Analysis":
                 (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
                 (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
     with col2:
-        st.header('Collection Analysis') 
-        st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")       
+        st.header('Collection Analysis')        
         col1,col2,col3=st.columns([1,1.1,1.8],gap='medium')
         with col1:
         
@@ -891,7 +766,7 @@ elif st.session_state.selected == "Maps":
     
     st.write("**Filters option**")
     
-    data = st.session_state.processed_data
+    data = load_data()
 
     col1,col2=st.columns([1,7],gap="large")         
     with col1:
@@ -972,7 +847,6 @@ elif st.session_state.selected == "Maps":
    
     with col2:
         st.header('Map')
-        st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")
         tab1,tab2=st.tabs(["Outbound from a single ZC","Inbound to a single ZC"])
         with tab1:
             col3,col4=st.columns([1,9])
