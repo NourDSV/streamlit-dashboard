@@ -1,14 +1,10 @@
 streamlit
 pandas
 matplotlib
-seaborn
 geopandas
-numpy
 folium
-branca
 plotly
 streamlit-folium
 openpyxl
 streamlit_option_menu
 streamlit-aggrid
-BytesIO
