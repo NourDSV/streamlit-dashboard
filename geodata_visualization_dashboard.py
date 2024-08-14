@@ -28,13 +28,14 @@ dsv=pd.read_excel("DSV Branches.xlsx")
 st.set_page_config(layout='wide')
 
 # Function to load data
-# @st.cache_data
+
 def load_data():
     uploaded_file = st.session_state.get('uploaded_file', None)
     
     if uploaded_file is not None:
         data = pd.read_excel(uploaded_file)
         data=data[['ZC from','ZC to','Date',"kg","ldm","m3","Branch"]]
+        data['Branch'] = data['Branch'].fillna('undefined')
 
         data[['kg', 'ldm', 'm3']] = data[['kg', 'ldm', 'm3']].fillna(0)
         data=data[~(data["ZC from"].isna() | data["ZC to"].isna() | ( (( (data["kg"] == 0)) & ( (data["ldm"] == 0)) & ( (data["m3"] == 0)))))]
