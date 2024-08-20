@@ -794,6 +794,7 @@ elif st.session_state.selected == "Collection Analysis":
             df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
             df1=df1.rename(columns={'Date': 'Shipments'})
             df1=df1.reset_index()
+            df1['Date'] = pd.to_datetime(df1['Date'])
             df1['day'] = df1["Date"].dt.day_name()
             df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
             
