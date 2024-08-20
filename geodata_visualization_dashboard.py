@@ -796,6 +796,7 @@ elif st.session_state.selected == "Collection Analysis":
             df1=df1.reset_index()
             df1['Date'] = pd.to_datetime(df1['Date'])
             df1['day'] = df1["Date"].dt.day_name()
+            df1 = df1.set_index('day')
             df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
             
             st.dataframe(df6,use_container_width=True,height=510)
