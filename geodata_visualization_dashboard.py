@@ -793,7 +793,8 @@ elif st.session_state.selected == "Collection Analysis":
             
             df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
             df1=df1.rename(columns={'Date': 'Shipments'})
-            df1['day'] = df1.index.day_name()
+            df1=df1.reset_index()
+            df1['day'] = df1["Date"].day_name()
             df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
             
             st.dataframe(df6,use_container_width=True,height=510)
