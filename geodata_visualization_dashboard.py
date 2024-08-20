@@ -163,9 +163,9 @@ if st.session_state.selected == "Upload data":
                     st.write("Choose how payweight should be calculated:")
                     col01,col02=st.columns([1,1])
                     with col01:
-                        st.session_state.pw_ldm=st.number_input("kg/ldm :",1750)
+                        st.session_state.pw_ldm=st.number_input("kg/ldm :",value=1750)
                     with col02:
-                        st.session_state.pw_cbm=st.number_input("kg/cbm:",330)
+                        st.session_state.pw_cbm=st.number_input("kg/cbm:",value=330)
                 with col4:
                     st.write("Define parcel's weight(Kg), up to:")
                     st.session_state.selected_parcel=st.select_slider("",brakets,value="30")
@@ -181,7 +181,7 @@ if st.session_state.selected == "Upload data":
                 st.session_state.factor=st.radio("In case of  missing ldm or cbm, you can apply a kg/ldm factor. Do you want to apply one ?",["No","Yes"])
                 col8,col9=st.columns([1,8])
                 with col8:
-                    st.session_state.input_factor = st.text_input("If yes, enter your kg/ldm factor:","1750")
+                    st.session_state.input_factor = st.number_input("If yes, enter your kg/ldm factor:",value=1750)
                 col11,col12,col13=st.columns([1.5,1,1])
                 with col12:
                         st.write("")
