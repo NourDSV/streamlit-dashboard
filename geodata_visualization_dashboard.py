@@ -787,7 +787,7 @@ elif st.session_state.selected == "Collection Analysis":
     with col2:
         st.header('Collection Analysis') 
         st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")       
-        col1,col2,col3=st.columns([1,1.1,1.8],gap='medium')
+        col1,col2,col3=st.columns([1.3,1.1,1.6],gap='medium')
         with col1:
         
             
