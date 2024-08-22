@@ -265,6 +265,36 @@ if st.session_state.selected == "Shipment Summary":
                 selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
                 selected_way = st.multiselect('Select way', options=data['Way'].unique())
                 
+                data['Date'] = pd.to_datetime(data['Date'])
+
+                first_date = data['Date'].min()
+                last_date = data['Date'].max()
+
+                start_date = st.date_input(
+                    "Select start date",
+                    value=first_date,
+                    min_value=first_date,
+                    max_value=last_date,
+                    format="DD.MM.YYYY"
+                    
+                )
+
+                end_date = st.date_input(
+                    "Select end date",
+                    value=last_date,
+                    min_value=start_date,
+                    max_value=last_date,
+                    format="DD.MM.YYYY"
+                )
+                
+                
+                if st.button("Reset to default period"):
+                    st.experimental_rerun()
+                    
+                    
+
+                    
+
             
                 data = data[
                 (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
@@ -273,7 +303,8 @@ if st.session_state.selected == "Shipment Summary":
                 (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
                 (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
                 (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
-                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
         
         with col2:
             st.header("Shipment summary")
@@ -551,7 +582,12 @@ elif st.session_state.selected == "Shipment Profile":
             selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
             selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
             selected_way = st.multiselect('Select way', options=data['Way'].unique())
-            
+
+            data['Date'] = pd.to_datetime(data['Date'])
+            first_date = data['Date'].min()
+            last_date = data['Date'].max()
+            select_date=st.date_input("Select period",(first_date, last_date),first_date,last_date, format="DD.MM.YYYY")
+            start_date, end_date = select_date
         
             data = data[
             (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
@@ -560,7 +596,8 @@ elif st.session_state.selected == "Shipment Profile":
             (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
             (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
             (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
-            (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+            (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+            (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
         with col2:
             def can_convert_to_int(value):
                 try:
@@ -775,7 +812,12 @@ elif st.session_state.selected == "Collection Analysis":
                 selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
                 selected_way = st.multiselect('Select way', options=data['Way'].unique())
                 
-            
+                data['Date'] = pd.to_datetime(data['Date'])
+                first_date = data['Date'].min()
+                last_date = data['Date'].max()
+                select_date=st.date_input("Select period",(first_date, last_date),first_date,last_date, format="DD.MM.YYYY")
+                start_date, end_date = select_date
+
                 data = data[
                 (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
                 (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
@@ -783,7 +825,8 @@ elif st.session_state.selected == "Collection Analysis":
                 (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
                 (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
                 (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
-                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
     with col2:
         st.header('Collection Analysis') 
         st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")       
@@ -793,14 +836,20 @@ elif st.session_state.selected == "Collection Analysis":
             
             df1=data.groupby('Date').agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
             df1=df1.rename(columns={'Date': 'Shipments'})
-            df1=df1.reset_index()
-            df1['Date'] = pd.to_datetime(df1['Date'])
-            df1['day'] = df1["Date"].dt.day_name()
-            df1 = df1.set_index('day')
-            df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
-            
+            df6=df1.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x) 
             st.dataframe(df6,use_container_width=True,height=510)
-             
+
+            df22=df1.reset_index()
+            df22['Date'] = pd.to_datetime(df22['Date'])
+            df22['day'] = df22["Date"].dt.day_name()
+            df22=df22.groupby('day').agg({'Date': 'count' ,'Shipments':'sum','kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum' })
+            df22=df22.rename(columns={'Date':'Collection'})
+            df22=df22.reset_index()
+            day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            df22 = df22.set_index('day').reindex(day_order, fill_value=0).reset_index()
+            df22['day'] = pd.Categorical(df22['day'], categories=day_order, ordered=True)
+            df22 = df22.sort_values('day')
+            
         with col2:
             df2=df1.sum(numeric_only=True).to_frame().T
             df2.index=["Total"]
@@ -861,28 +910,40 @@ elif st.session_state.selected == "Collection Analysis":
                 df3=df3.rename(columns={'ldm': 'collection'})
                 df3=df3.reset_index()
                 df4=pd.DataFrame()
-                fig=px.bar(df3,x="LDM",y="collection", color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'], text='collection')
+                fig=px.bar(df3,x="LDM",y="collection",color="LDM", color_discrete_sequence=['#A9BCE2','#002664','#5D7AB5'], text='collection')
                 fig.update_layout(
                                 title="Number of collections per ldm  ",
-                                xaxis_title='',
+                                xaxis_title='',     
                                 yaxis_title='',
                                 xaxis=dict(type='category'),
+                                showlegend=False,
                             height=280)
                 st.plotly_chart(fig)
-                data['Month'] = pd.to_datetime(data['Date']).dt.to_period('M')
-                df4=data.groupby('Month').agg({'kg': 'count' }).reset_index()
-                df4=df4.rename(columns={'kg': 'Collection'})
-                df4['Month'] = df4['Month'].astype(str)
-                fig_ship = px.line(df4, x='Month', y='Collection', markers=True, line_shape='spline')
-                fig_ship.update_layout(
-                            title='Seasonality of collection per month', 
-                            xaxis_title='Month',
-                            yaxis_title='Number of collection',
-                            height=290
-                        )
-                st.plotly_chart(fig_ship)
-            
 
+   
+
+                fig=px.bar(df22,x="day",y="ldm",color="day", color_discrete_sequence=['#002664','#5D7AB5','#A9BCE2'])
+                fig.update_layout(
+                            title="ldm per week day ",
+                            xaxis_title='',     
+                            yaxis_title='',
+                            showlegend=False,
+                            height=300)
+                fig.update_coloraxes(showscale=False)
+                st.plotly_chart(fig)
+            
+        data['Month'] = pd.to_datetime(data['Date']).dt.to_period('M')
+        df4=data.groupby('Month').agg({'kg': 'count' }).reset_index()
+        df4=df4.rename(columns={'kg': 'Collection'})
+        df4['Month'] = df4['Month'].astype(str)
+        fig_ship = px.line(df4, x='Month', y='Collection', markers=True, line_shape='spline')
+        fig_ship.update_layout(
+                    title='Seasonality of collection per month', 
+                    xaxis_title='Month',
+                    yaxis_title='Number of collection',
+                    height=290
+                )
+        st.plotly_chart(fig_ship,use_container_width=False)
 
            
 #########################
@@ -906,8 +967,16 @@ elif st.session_state.selected == "Maps":
                 selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
                 selected_level = st.selectbox('Select a level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
+                data['Date'] = pd.to_datetime(data['Date'])
+                first_date = data['Date'].min()
+                last_date = data['Date'].max()
+                select_date=st.date_input("Select period",(first_date, last_date),first_date,last_date, format="DD.MM.YYYY")
+                start_date, end_date = select_date
+
                 data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
-                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+
                 m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
                 m1= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
                 if st.checkbox('show DSV branches'):
