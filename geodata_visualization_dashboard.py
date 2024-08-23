@@ -34,7 +34,10 @@ def load_data():
     
     if uploaded_file is not None:
         data = pd.read_excel(uploaded_file)
-        data=data[['ZC from','ZC to','Date',"kg","ldm","m3","Branch"]]
+        if 'Date' not in data.columns:
+            data['Date'] = pd.Series(dtype='datetime64[ns]')  # Create an empty datetime column
+      
+        data=data[["ZC from","ZC to","Date","kg","ldm","m3","Branch"]]
         data['Branch'] = data['Branch'].fillna('undefined')
 
         data[['kg', 'ldm', 'm3']] = data[['kg', 'ldm', 'm3']].fillna(0)
@@ -47,8 +50,14 @@ def load_data():
         data['ZC from'] = data['ZC from'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
         data['ZC to'] = data['ZC to'].apply(lambda x: 'UK' + x[2:] if x.startswith('GB') else x)
         
-        data['Date'] = data['Date'].apply(lambda x: pd.to_datetime(x) if pd.notnull(x) and x != '' else x)
+        
+        if not pd.api.types.is_datetime64_any_dtype(data['Date']):
+            data['Date'] = pd.to_datetime(data['Date'], errors='coerce') 
         data['Date'] = data['Date'].dt.date
+       
+
+            
+        
         return data
     else:
         st.error("please upload your data first",icon="🚨")
@@ -264,48 +273,58 @@ if st.session_state.selected == "Shipment Summary":
                 selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
                 selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
                 selected_way = st.multiselect('Select way', options=data['Way'].unique())
+
+                if data['Date'].isna().sum() == 0:
+                    data['Date'] = pd.to_datetime(data['Date'])
+
+                    first_date = data['Date'].min()
+                    last_date = data['Date'].max()
+
+                    start_date = st.date_input(
+                        "Select start date",
+                        value=first_date,
+                        min_value=first_date,
+                        max_value=last_date,
+                        format="DD.MM.YYYY"
+                        
+                    )
+
+                    end_date = st.date_input(
+                        "Select end date",
+                        value=last_date,
+                        min_value=start_date,
+                        max_value=last_date,
+                        format="DD.MM.YYYY"
+                    )
                 
-                data['Date'] = pd.to_datetime(data['Date'])
-
-                first_date = data['Date'].min()
-                last_date = data['Date'].max()
-
-                start_date = st.date_input(
-                    "Select start date",
-                    value=first_date,
-                    min_value=first_date,
-                    max_value=last_date,
-                    format="DD.MM.YYYY"
-                    
-                )
-
-                end_date = st.date_input(
-                    "Select end date",
-                    value=last_date,
-                    min_value=start_date,
-                    max_value=last_date,
-                    format="DD.MM.YYYY"
-                )
                 
                 
-                if st.button("Reset to default period"):
-                    st.experimental_rerun()
                     
                     
-
                     
 
-            
-                data = data[
-                (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
-                (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
-                (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
-                (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
-                (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
-                (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
-                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
-                (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
-        
+                    
+
+                if 'start_date' in locals() and 'end_date' in locals():
+                    data = data[
+                    (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                    (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                    (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                    (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                    (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                    (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                    (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                else:
+                    data = data[
+                    (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                    (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                    (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                    (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                    (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                    (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
+
         with col2:
             st.header("Shipment summary")
             st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")
@@ -442,8 +461,8 @@ if st.session_state.selected == "Shipment Summary":
             col1,col2,col3,col4 = st.columns([1,1,2,2.5])
             with col2:
 
-                df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                df6=df6.rename(columns={'Date' : 'Number of shipments'})
+                df6=data.groupby(['ZC to']).agg({'ZC from': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df6=df6.rename(columns={'ZC from' : 'Number of shipments'})
                 df6=df6.sort_values(by="Number of shipments",ascending= False )
                 df6=df6.head(10)
                 df6=df6.sort_values(by="Number of shipments",ascending= True )
@@ -462,8 +481,8 @@ if st.session_state.selected == "Shipment Summary":
                 
 
             with col1:
-                df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                df7=df7.rename(columns={'Date' : 'Number of shipments'})
+                df7=data.groupby(['ZC from']).agg({'ZC to': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df7=df7.rename(columns={'ZC to' : 'Number of shipments'})
                 df7=df7.sort_values(by="Number of shipments",ascending= False )
                 df7=df7.head(10)
                 df7=df7.sort_values(by="Number of shipments",ascending= True )
@@ -482,8 +501,8 @@ if st.session_state.selected == "Shipment Summary":
                 
             
             with col3:
-                df3=data.groupby(['ZC from','ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                df3=df3.rename(columns={'Date' : 'Number of shipments'})
+                df3=data.groupby(['ZC from','ZC to']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum'  })
+                df3=df3.rename(columns={'PW DSV' : 'Number of shipments'})
                 df3=df3.sort_values(by="Number of shipments",ascending=False )
                 # df3["%"]=df3["PW DSV"]/(sum(df3["PW DSV"]))*100
                 # df3["cum"]=df3["%"].cumsum()
@@ -518,8 +537,8 @@ if st.session_state.selected == "Shipment Summary":
             col1,col2,col3=st.columns([1.5,1,1.5])
 
             with col1:
-                df4=data.groupby(["Product"]).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-                df4=df4.rename(columns={'Date' : 'Shipments'})
+                df4=data.groupby(["Product"]).agg({'ZC to': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
+                df4=df4.rename(columns={'ZC to' : 'Shipments'})
                 df4 = df4.applymap(lambda x: int(x) if isinstance(x, (int, float)) else x)
                 df4=df4.T
                 df4["Total"]=df4.sum(axis=1)
@@ -530,7 +549,7 @@ if st.session_state.selected == "Shipment Summary":
                 df7=df7.applymap(lambda x: '{:,.0f}'.format(x).replace(',', ' ') if pd.notna(x) and isinstance(x, (int, float)) else x)
                 st.dataframe(df7)
             with col2:
-                df5=data.pivot_table(index="Way", columns="Product", values="Date",aggfunc="count")
+                df5=data.pivot_table(index="Way", columns="Product", values="PW DSV",aggfunc="count")
                 df5["Total"]=df5.sum(axis=1)
                 df5= df5.fillna(0)
                 
@@ -582,22 +601,51 @@ elif st.session_state.selected == "Shipment Profile":
             selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
             selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
             selected_way = st.multiselect('Select way', options=data['Way'].unique())
+            if data['Date'].isna().sum() == 0:
+                data['Date'] = pd.to_datetime(data['Date'])
 
-            data['Date'] = pd.to_datetime(data['Date'])
-            first_date = data['Date'].min()
-            last_date = data['Date'].max()
-            select_date=st.date_input("Select period",(first_date, last_date),first_date,last_date, format="DD.MM.YYYY")
-            start_date, end_date = select_date
+                first_date = data['Date'].min()
+                last_date = data['Date'].max()
+
+                start_date = st.date_input(
+                    "Select start date",
+                    value=first_date,
+                    min_value=first_date,
+                    max_value=last_date,
+                    format="DD.MM.YYYY"
+                    
+                )
+
+                end_date = st.date_input(
+                    "Select end date",
+                    value=last_date,
+                    min_value=start_date,
+                    max_value=last_date,
+                    format="DD.MM.YYYY"
+                )
+            
+            
+           
         
-            data = data[
-            (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
-            (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
-            (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
-            (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
-            (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
-            (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
-            (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
-            (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+            if 'start_date' in locals() and 'end_date' in locals():
+                    data = data[
+                    (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                    (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                    (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                    (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                    (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                    (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                    (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+            else:
+                    data = data[
+                    (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                    (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                    (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                    (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                    (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                    (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
         with col2:
             def can_convert_to_int(value):
                 try:
@@ -811,22 +859,51 @@ elif st.session_state.selected == "Collection Analysis":
                 selected_zc_to = st.multiselect('Select Zip Code To', filtered_zc_to)
                 selected_product = st.multiselect('Select type of product', options=data['Product'].unique())
                 selected_way = st.multiselect('Select way', options=data['Way'].unique())
-                
-                data['Date'] = pd.to_datetime(data['Date'])
-                first_date = data['Date'].min()
-                last_date = data['Date'].max()
-                select_date=st.date_input("Select period",(first_date, last_date),first_date,last_date, format="DD.MM.YYYY")
-                start_date, end_date = select_date
+                if data['Date'].isna().sum() == 0:
+                    data['Date'] = pd.to_datetime(data['Date'])
 
-                data = data[
-                (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
-                (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
-                (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
-                (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
-                (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
-                (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
-                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
-                (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                    first_date = data['Date'].min()
+                    last_date = data['Date'].max()
+
+                    start_date = st.date_input(
+                        "Select start date",
+                        value=first_date,
+                        min_value=first_date,
+                        max_value=last_date,
+                        format="DD.MM.YYYY"
+                        
+                    )
+
+                    end_date = st.date_input(
+                        "Select end date",
+                        value=last_date,
+                        min_value=start_date,
+                        max_value=last_date,
+                        format="DD.MM.YYYY"
+                    )
+                
+                
+               
+
+                if 'start_date' in locals() and 'end_date' in locals():
+                    data = data[
+                    (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                    (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                    (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                    (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                    (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                    (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                    (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                else:
+                    data = data[
+                    (data['Cntry from'].isin(selected_cntry_from) if selected_cntry_from else data['Cntry from'].notnull()) &
+                    (data['ZC from'].isin(selected_zc_from) if selected_zc_from else data['ZC from'].notnull()) &
+                    (data['Cntry to'].isin(selected_cntry_to) if selected_cntry_to else data['Cntry to'].notnull()) &
+                    (data['ZC to'].isin(selected_zc_to) if selected_zc_to else data['ZC to'].notnull())&
+                    (data['Product'].isin(selected_product) if selected_product else data['Product'].notnull())&
+                    (data['Way'].isin(selected_way) if selected_way else data['Way'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]
     with col2:
         st.header('Collection Analysis') 
         st.write(f"***Point of view from {st.session_state.selected_dsv_country} |  Parcel ≤ {st.session_state.selected_parcel} kg | GRP ≤ {st.session_state.selected_grp} kg | LTL ≤ {st.session_state.selected_ltl} kg | FTL > {st.session_state.selected_ltl} kg | Ratios {st.session_state.pw_cbm}/cbm & {st.session_state.pw_ldm}/ldm  {st.session_state.factor_phrase}.***")       
@@ -967,16 +1044,39 @@ elif st.session_state.selected == "Maps":
                 selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
                 selected_level = st.selectbox('Select a level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
-                data['Date'] = pd.to_datetime(data['Date'])
-                first_date = data['Date'].min()
-                last_date = data['Date'].max()
-                select_date=st.date_input("Select period",(first_date, last_date),first_date,last_date, format="DD.MM.YYYY")
-                start_date, end_date = select_date
+                if data['Date'].isna().sum() == 0:
+                    data['Date'] = pd.to_datetime(data['Date'])
 
-                data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
-                (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
-                (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                    first_date = data['Date'].min()
+                    last_date = data['Date'].max()
 
+                    start_date = st.date_input(
+                        "Select start date",
+                        value=first_date,
+                        min_value=first_date,
+                        max_value=last_date,
+                        format="DD.MM.YYYY"
+                        
+                    )
+
+                    end_date = st.date_input(
+                        "Select end date",
+                        value=last_date,
+                        min_value=start_date,
+                        max_value=last_date,
+                        format="DD.MM.YYYY"
+                    )
+                
+                
+              
+
+                if 'start_date' in locals() and 'end_date' in locals():
+                    data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())&
+                    (data['Date'] >= pd.to_datetime(start_date)) & (data['Date'] <= pd.to_datetime(end_date))]
+                else:
+                    data=data[(data['Product'].isin(produit) if produit else data['Product'].notnull())&
+                    (data['Branch'].isin(selected_branch) if selected_branch else data['Branch'].notnull())]   
                 m= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
                 m1= folium.Map(location=[54.5260,15.2551],zoom_start=4,width='100%', control_scale=True)
                 if st.checkbox('show DSV branches'):
@@ -1003,8 +1103,8 @@ elif st.session_state.selected == "Maps":
                     TagFilterButton(categories).add_to(m)
                     TagFilterButton(categories).add_to(m1) 
 
-        df7=data.groupby(['ZC from']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-        df7=df7.rename(columns={'Date' : 'Number of shipments'})
+        df7=data.groupby(['ZC from']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum'  })
+        df7=df7.rename(columns={'PW DSV' : 'Number of shipments'})
         df7=df7.sort_values(by="Number of shipments",ascending= False )
         df7=df7.head(10)
         df7=df7.sort_values(by="Number of shipments",ascending= True )
@@ -1022,8 +1122,8 @@ elif st.session_state.selected == "Maps":
         fig.update_coloraxes(showscale=False)
         st.plotly_chart(fig, height=50)
 
-        df6=data.groupby(['ZC to']).agg({'Date': 'count' ,'kg': 'sum', 'ldm': 'sum', 'PW DSV': 'sum'  })
-        df6=df6.rename(columns={'Date' : 'Number of shipments'})
+        df6=data.groupby(['ZC to']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum'  })
+        df6=df6.rename(columns={'PW DSV' : 'Number of shipments'})
         df6=df6.sort_values(by="Number of shipments",ascending= False )
         df6=df6.head(10)
         df6=df6.sort_values(by="Number of shipments",ascending= True )
@@ -1032,7 +1132,7 @@ elif st.session_state.selected == "Maps":
         color='Number of shipments', 
         color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
         orientation='h',
-        hover_data={'kg': True, 'ldm': True, 'PW DSV': True})  
+        hover_data={'kg': True, 'ldm': True})  
         fig.update_layout(
             xaxis_title='Shipments',  
             yaxis_title='',
