@@ -76,12 +76,7 @@ def process_data(data, selected_dsv_country, selected_parcel, selected_grp, sele
 
     
     data['kg'] = pd.to_numeric(data['kg'], errors='coerce')
-    data['Product'] = data['kg'].apply(
-        lambda x: 'Parcel' if x <= float(selected_parcel)
-        else 'GRP' if x <= float(selected_grp)
-        else 'LTL' if x <= float(selected_ltl)
-        else 'FTL'
-    )
+
 
     
     data['ldm'] = pd.to_numeric(data['ldm'], errors='coerce')
@@ -111,6 +106,12 @@ def process_data(data, selected_dsv_country, selected_parcel, selected_grp, sele
         else 15000 if x <= 15000
         else 20000 if x <= 20000
         else 25500
+    )
+    data['Product'] = data['PW DSV'].apply(
+    lambda x: 'Parcel' if x <= float(selected_parcel)
+    else 'GRP' if x <= float(selected_grp)
+    else 'LTL' if x <= float(selected_ltl)
+    else 'FTL'
     )
     
 
