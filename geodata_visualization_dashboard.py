@@ -1352,16 +1352,26 @@ elif st.session_state.selected == "Regularity Detector":
            
         
         data['lane'] = data['ZC from'].astype(str) + ' - ' + data['ZC to'].astype(str)       
-        # st.write(data)
+       
         days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         data['day'] = pd.Categorical(data['day'], categories=days_order, ordered=True)
+        
+        ldm_mean = data.groupby(['lane', 'Branch', 'Product', 'Way'])['ldm'].mean().reset_index()
         df=pd.pivot_table(data,values="PW DSV",index=["lane",'Branch','Product','Way'],columns="day",aggfunc="count")
         
 
         df['Total'] = df.sum(axis=1) 
+        
         df = df.reset_index()
+        
+        ldm_mean.columns = ['lane', 'Branch', 'Product', 'Way', 'Average LDM']
+        
+
         df=df.dropna(how='all', subset=df.columns[4:])
         df=df[df['Total'] != 0]
+        df["Average ldm"]=ldm_mean['Average LDM']
+        new_column_order = ['lane', 'Branch', 'Product', 'Way', 'Average ldm'] + [col for col in df.columns if col not in ['lane', 'Branch', 'Product', 'Way', 'Average ldm']]
+        df=df[new_column_order]
         # st.write(df)
         if not df.empty:
             gb = GridOptionsBuilder.from_dataframe(df)
@@ -1422,7 +1432,6 @@ elif st.session_state.selected == "Regularity Detector":
                     }
                 }
             )
-
             # Add 'Weekly Trend' column to DataFrame (required by AG Grid but can remain empty)
             df['Weekly Trend'] = df.apply(lambda row: [
                 row['Monday'], row['Tuesday'], row['Wednesday'], row['Thursday'],
@@ -1430,19 +1439,21 @@ elif st.session_state.selected == "Regularity Detector":
             ], axis=1)
 
             gb.configure_default_column( filter=True, sortable=True, floatingFilter=True) 
-            gb.configure_column('Monday', cellStyle=cell_style_jscode)
-            gb.configure_column('Tuesday', cellStyle=cell_style_jscode)
-            gb.configure_column('Wednesday', cellStyle=cell_style_jscode)
-            gb.configure_column('Thursday', cellStyle=cell_style_jscode)
-            gb.configure_column('Friday', cellStyle=cell_style_jscode)
-            gb.configure_column('Saturday', cellStyle=cell_style_jscode)
-            gb.configure_column('Sunday', cellStyle=cell_style_jscode)
+            gb.configure_column('Monday', cellStyle=cell_style_jscode, headerName="Mon")
+            gb.configure_column('Tuesday', cellStyle=cell_style_jscode, headerName="Tues")
+            gb.configure_column('Wednesday', cellStyle=cell_style_jscode, headerName="Wed")
+            gb.configure_column('Thursday', cellStyle=cell_style_jscode, headerName="Thurs")
+            gb.configure_column('Friday', cellStyle=cell_style_jscode, headerName="Fri")
+            gb.configure_column('Saturday', cellStyle=cell_style_jscode, headerName="Sat")
+            gb.configure_column('Sunday', cellStyle=cell_style_jscode, headerName="Sun")
             gb.configure_column('Total', cellStyle=cell_style_jscode)
 
-            gb.configure_column('Branch', headerName="Branch", filter="agSetColumnFilter")
-            gb.configure_column('Product', headerName="Product", filter="agSetColumnFilter")
-            gb.configure_column('Way', headerName="Way", filter="agSetColumnFilter") 
-            # gb.configure_column('Monday', headerName="Monday", filter="agSetColumnFilter") 
+            gb.configure_column('lane', headerName="Lane", filter="agSetColumnFilter", minWidth=124)
+            gb.configure_column('Branch', headerName="Branch", filter="agSetColumnFilter", minWidth=120)
+            gb.configure_column('Product', headerName="Product", filter="agSetColumnFilter", minWidth=109)
+            gb.configure_column('Way', headerName="Way", filter="agSetColumnFilter", minWidth=10) 
+            gb.configure_column('Average ldm', headerName="Avg ldm", filter="agSetColumnFilter", minWidth=112)
+            gb.configure_column('Weekly Trend', headerName="Weekly Trend",  minWidth=140)  
             grid_options = gb.build()
             
             response = AgGrid(
