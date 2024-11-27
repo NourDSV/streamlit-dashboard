@@ -16,28 +16,6 @@ from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 from streamlit_option_menu import option_menu
 from io import BytesIO
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
-
-import PyPDF2
-from openai import OpenAI
-from openai.types.chat import ChatCompletionMessage
-from openai.types.chat.chat_completion import ChatCompletion, Choice
-import tiktoken
-
-
-# from PyPDF2 import PdfFileReader, PdfFileWriter,PdfReader
-
-# from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain.embeddings.openai import OpenAIEmbeddings
-# from langchain.vectorstores import FAISS
-# from langchain.llms import OpenAI
-# from langchain.chains.question_answering import load_qa_chain
-# from langchain.callbacks import get_openai_callback
-
-
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -46,6 +24,7 @@ levl3=gpd.read_file("NUTS_3_Q1.geojson")
 levl3.drop_duplicates(subset="NUTS_ID", keep="first", inplace=True)
 zip_code=pd.read_excel("zipcode_nuts with uk instead of gb.xlsx")
 dsv=pd.read_excel("DSV Branches.xlsx")
+
 
 st.set_page_config(layout='wide')
 
@@ -152,7 +131,7 @@ if 'selected' not in st.session_state:
 
 selected_option  = option_menu(
 menu_title=None,
-options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector","Chatbot"],
+options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector"],
 icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event","bi bi-filter"],
 menu_icon="cast",
 default_index=0,
@@ -1393,7 +1372,6 @@ elif st.session_state.selected == "Regularity Detector":
         df["Average ldm"]=ldm_mean['Average LDM']
         new_column_order = ['lane', 'Branch', 'Product', 'Way', 'Average ldm'] + [col for col in df.columns if col not in ['lane', 'Branch', 'Product', 'Way', 'Average ldm']]
         df=df[new_column_order]
-        
         # st.write(df)
         if not df.empty:
             gb = GridOptionsBuilder.from_dataframe(df)
@@ -1491,284 +1469,6 @@ elif st.session_state.selected == "Regularity Detector":
        
         
 
-            
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-elif st.session_state.selected == "Chatbot":
-        
-            def split_text_into_chunks(text, max_tokens=1500):
-                encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-                tokens = encoding.encode(text)
-                chunks = []
-                current_chunk = []
-                current_tokens = 0
-
-                for token in tokens:
-                    current_chunk.append(token)
-                    current_tokens += 1
-                    if current_tokens >= max_tokens:
-                        chunks.append(encoding.decode(current_chunk))
-                        current_chunk = []
-                        current_tokens = 0
-
-                if current_chunk:
-                    chunks.append(encoding.decode(current_chunk))
-
-                return chunks
-            st.title("💬 Chatbot")
-            st.caption("upload a pdf and ask me anything about it") 
-            openai_api_key = "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"
-            uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
-
-            # Initialize the message history if not already present
-            if "messages" not in st.session_state:
-                st.session_state["messages"] = [{"role": "assistant", "content": "Hello, how can I help you!"}]
-
-            # Display chat history
-            for msg in st.session_state.messages:
-                st.chat_message(msg["role"]).write(msg["content"])
-            
-
-            # Function to extract text from PDF
-            def extract_text_from_pdf(pdf_file):
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                text = ""
-                for page_num in range(len(pdf_reader.pages)):
-                    text += pdf_reader.pages[page_num].extract_text()
-                return text
-
-            # If a file is uploaded, extract its content
-            document_text = ""
-            if uploaded_file is not None:
-                document_text = extract_text_from_pdf(uploaded_file)
-                document_chunks = split_text_into_chunks(document_text)
-                st.success("PDF uploaded successfully!")
-
-            # Input from the user
-            if prompt := st.chat_input():
-                # Check if the API key is provided
-                if not openai_api_key:
-                    st.info("Please add your OpenAI API key to continue.")
-                    st.stop()
-
-                # Append the user message to the session state
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                st.chat_message("user").write(prompt)
-
-                # Append the document text to the context (if available)
-                messages_with_context = st.session_state.messages.copy()
-                if document_text:
-                    messages_with_context.append({"role": "system", "content": f"This is the document content:\n\n{document_text}"})
-
-                # Call the OpenAI API to generate a response
-                try:
-                    client = OpenAI(api_key=openai_api_key)  # Set the API key
-                    response = client.chat.completions.create(
-                        model="gpt-4o mini",
-                        messages=messages_with_context
-                    )
-                    # Extract the message from the response
-                    msg = response.choices[0].message.content
-
-                    # Append the assistant's message to the session state
-                    st.session_state.messages.append({"role": "assistant", "content": msg})
-                    st.chat_message("assistant").write(msg)
-                except Exception as e:
-                    st.error(f"An error occurred: {e}")
-
-
-
-
-
-            
-
-        # openai.api_key = "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"
-
-        
-
-       
-
-
-
-
-
-
-        # with col2:
-            
-        #     from transformers import pipeline
-        #     import PyPDF2
-
-        
-
-        #     def extract_text_from_pdf(pdf_file):
-        #         reader = PyPDF2.PdfReader(pdf_file)
-        #         text = ""
-        #         for page in reader.pages:
-        #             text += page.extract_text()
-        #         return text
-
-        #     if "messages" not in st.session_state:
-        #         st.session_state["messages"] = [{"role": "assistant", "content": "Upload a PDF and ask me anything about it!"}]
-        #     if "document_text" not in st.session_state:
-        #         st.session_state["document_text"] = None
-
-        #     # Streamlit app
-        #     st.title("PDF Chatbot: Ask Questions About Your Document")
-
-        #     # File uploader
-        #     uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
-
-        #     if uploaded_file:
-        #         with st.spinner("Extracting text from the PDF..."):
-        #             # Extract text from PDF and store it in session state
-        #             st.session_state["document_text"] = extract_text_from_pdf(uploaded_file)
-        #             st.success("PDF uploaded and text extracted successfully!")
-        #             st.session_state.messages.append({"role": "assistant", "content": "PDF loaded! Ask me any question about it."})
-
-        #     # Display chat history
-        #     for msg in st.session_state.messages:
-        #         st.chat_message(msg["role"]).write(msg["content"])
-
-        #     # Load the question-answering model once the document text is loaded
-        #     if st.session_state["document_text"]:
-        #         question_answering_pipe = pipeline("summarization", model="facebook/bart-large-cnn")
-
-        #     # Chat input
-        #     if prompt := st.chat_input(placeholder="Type your question here..."):
-        #         # Add user message to the chat history
-        #         st.session_state.messages.append({"role": "user", "content": prompt})
-        #         st.chat_message("user").write(prompt)
-
-        #         # Generate a response if the document text is available
-        #         if st.session_state["document_text"]:
-        #             with st.spinner("Thinking..."):
-        #                 try:
-        #                     result = question_answering_pipe(
-        #                         question=prompt, 
-        #                         context=st.session_state["document_text"]
-        #                     )
-        #                     answer = result["answer"]
-        #                 except Exception as e:
-        #                     answer = f"Sorry, I couldn't process your request. Error: {e}"
-
-        #             # Add assistant's response to the chat history
-        #             st.session_state.messages.append({"role": "assistant", "content": answer})
-        #             st.chat_message("assistant").write(answer)
-        #         else:
-        #             # Inform the user that no PDF is loaded
-        #             st.session_state.messages.append({"role": "assistant", "content": "Please upload a PDF first!"})
-        #             st.chat_message("assistant").write("Please upload a PDF first!")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            
-            # df88=data[["day","lane"]]
-            # df88=df88.set_index("lane")
-            
-            # identifiers = df88.index  # Assuming 'ID' is a unique identifier
-
-            
-    
-            # # Convert categorical columns to numeric using one-hot encoding
-            # df_encoded = pd.get_dummies(df88, drop_first=True)
-            
-            # # Standardize the data
-            # scaler = StandardScaler()
-            # df_scaled = scaler.fit_transform(df_encoded)
-            
-            # # Apply PCA and reduce to 2 components
-            # pca = PCA(n_components=2)
-            # pca_components = pca.fit_transform(df_scaled)
-            
-            # # Apply K-Means clustering on PCA components
-            # kmeans = KMeans(n_clusters=3)  # You can change the number of clusters
-            # clusters = kmeans.fit_predict(pca_components)
-            
-            # # Create a DataFrame for PCA components and cluster labels, including the original identifiers
-            # pca_df = pd.DataFrame(data=pca_components, columns=['PC1', 'PC2'])
-            # pca_df['Cluster'] = clusters
-            
-            # pca_df['Identifier'] = identifiers  # Add the original row identifier
-
-            
-            
-            # # Scatter plot with clusters
-            # st.subheader('PCA: Scatter Plot with K-Means Clusters')
-            # fig, ax = plt.subplots(figsize=(12, 10))
-            # scatter = ax.scatter(pca_df['PC1'], pca_df['PC2'], c=pca_df['Cluster'], cmap='viridis', edgecolor='k', s=50)
-            # ax.set_title('PCA: Scatter Plot with K-Means Clusters')
-            # ax.set_xlabel('Principal Component 1 (PC1)')
-            # ax.set_ylabel('Principal Component 2 (PC2)')
-            # ax.grid(True)
-            
-            # # Annotate a few points to show their original identifier
-            # # for i in range(len(pca_df)):
-            # #     if i % 10 == 0:  # Annotate every 10th point for readability
-            # #         ax.text(pca_df['PC1'][i], pca_df['PC2'][i], str(pca_df['Identifier'][i]), fontsize=9)
-            
-            
-
-
-            
-            # for i in range(len(pca_df)):
-            #      # Annotate every 10th point for readability
-            #         # Ensure the identifier is a string for proper plotting
-            #         identifier = str(pca_df['Identifier'].iloc[i])
-            #         ax.text(pca_df['PC1'].iloc[i], pca_df['PC2'].iloc[i], identifier, fontsize=9)
-
-
-            # st.pyplot(fig)
-
-
-            # # Create and display DataFrames for each cluster
-            # st.subheader('Data Tables for Each Cluster')
-            # for cluster_id in pca_df['Cluster'].unique():
-            #     st.write(f"### Data for Cluster {cluster_id}")
-            #     cluster_df = df[pca_df['Cluster'] == cluster_id].copy()
-            #     cluster_df['Cluster'] = cluster_id  # Add the cluster label to the original DataFrame
-                
-            #     # Drop PCA components columns if they exist
-            #     if 'PC1' in cluster_df.columns and 'PC2' in cluster_df.columns:
-            #         cluster_df = cluster_df.drop(columns=['PC1', 'PC2'])
-                
-            #     st.dataframe(cluster_df)
         
         
 
