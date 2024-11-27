@@ -9,3 +9,6 @@ openpyxl
 streamlit_option_menu
 streamlit-aggrid
 xlsxwriter
+PyPDF2
+openai
+tiktoken
