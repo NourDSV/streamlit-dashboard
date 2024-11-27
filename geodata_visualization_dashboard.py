@@ -1516,7 +1516,7 @@ elif st.session_state.selected == "Chatbot":
                 return chunks
             st.title("💬 Chatbot")
             st.caption("upload a pdf and ask me anything about it") 
-            openai_api_key = "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"
+            openai_api_key = st.text_input("Put your api key")
             uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
             # Initialize the message history if not already present
