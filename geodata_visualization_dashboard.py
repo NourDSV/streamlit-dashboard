@@ -1563,7 +1563,7 @@ elif st.session_state.selected == "Chatbot":
                 try:
                     client = OpenAI(api_key=openai_api_key)  # Set the API key
                     response = client.chat.completions.create(
-                        model="gpt-4o mini",
+                        model="gpt-4o",
                         messages=messages_with_context
                     )
                     # Extract the message from the response
