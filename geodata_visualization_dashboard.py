@@ -20,6 +20,8 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion import ChatCompletion, Choice
 import tiktoken
+from pptx import Presentation
+from docx import Document
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -1515,17 +1517,11 @@ elif st.session_state.selected == "Chatbot":
 
                 return chunks
             st.title("💬 Chatbot")
-            st.caption("upload a pdf and ask me anything about it") 
+            st.caption("upload your file and ask me anything about it") 
             openai_api_key = st.text_input("Put your api key")
-            uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+            uploaded_file = st.file_uploader("Upload a PDF", type=["pdf", "pptx", "docx"])
 
-            # Initialize the message history if not already present
-            if "messages" not in st.session_state:
-                st.session_state["messages"] = [{"role": "assistant", "content": "Hello, how can I help you!"}]
-
-            # Display chat history
-            for msg in st.session_state.messages:
-                st.chat_message(msg["role"]).write(msg["content"])
+          
             
 
             # Function to extract text from PDF
@@ -1535,45 +1531,95 @@ elif st.session_state.selected == "Chatbot":
                 for page_num in range(len(pdf_reader.pages)):
                     text += pdf_reader.pages[page_num].extract_text()
                 return text
-
+            def extract_text_from_pptx(pptx_file):
+            
+                presentation = Presentation(pptx_file)
+                text = ""
+                for slide in presentation.slides:
+                    for shape in slide.shapes:
+                        if shape.has_text_frame:
+                            text += shape.text_frame.text + "\n"
+                return text
+            
+            def extract_text_from_docx(docx_file):
+                document = Document(docx_file)
+                text = ""
+                for paragraph in document.paragraphs:
+                    text += paragraph.text + "\n"
+                return text
+            
+            def extract_text_from_file(file, file_type):
+                if file_type == "pdf":
+                    return extract_text_from_pdf(file)
+                elif file_type == "pptx":
+                    return extract_text_from_pptx(file)
+                elif file_type == "docx":
+                    return extract_text_from_docx(file)
+                else:
+                    print("Unsupported file type.")
+                    return ""
+                
             # If a file is uploaded, extract its content
             document_text = ""
             if uploaded_file is not None:
-                document_text = extract_text_from_pdf(uploaded_file)
-                document_chunks = split_text_into_chunks(document_text)
+                file_type = uploaded_file.name.split(".")[-1].lower()
+                document_text = extract_text_from_file(uploaded_file, file_type)
+                # document_chunks = split_text_into_chunks(document_text)
                 st.success("PDF uploaded successfully!")
 
-            # Input from the user
-            if prompt := st.chat_input():
-                # Check if the API key is provided
-                if not openai_api_key:
-                    st.info("Please add your OpenAI API key to continue.")
-                    st.stop()
+                if st.button("See summary"):
+                    messages = [{"role": "system", "content": f"Answer as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document and the in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,existing of Parcel yes or no,existing of groupage yes or no,existing of LTL yes or no,existing of FTL yes or no,existing of Intermodal yes or no,existing of Box trailers yes or no,existing of Curtain trailers yes or no,existing of Mega trailers yes or no,existing of Open trailers yes or no,existing of Reefer trailers yes or no,existing of Jumbo trailers yes or no,existing of Temperature controlled yes or no,existing of KFF - Keep From Freezing yes or no,existing of Taillift yes or no,existing of ADR yes or no,existing of Stand trailer yes or no,existing of Penalties yes or no.This is the document content :\n\n{document_text}"}]
+                    try:
+                        client = OpenAI(api_key=openai_api_key)  # Set the API key
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=messages)
+                        msg = response.choices[0].message.content
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                        
+                        
+                    st.write(msg)
 
-                # Append the user message to the session state
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                st.chat_message("user").write(prompt)
+                    # Initialize the message history if not already present
+                    if "messages" not in st.session_state:
+                        st.session_state["messages"] = [{"role": "assistant", "content": "Do you have any further questions?"}]
 
-                # Append the document text to the context (if available)
-                messages_with_context = st.session_state.messages.copy()
-                if document_text:
-                    messages_with_context.append({"role": "system", "content": f"This is the document content:\n\n{document_text}"})
+                    # Display chat history
+                    for msg in st.session_state.messages:
+                        st.chat_message(msg["role"]).write(msg["content"])
 
-                # Call the OpenAI API to generate a response
-                try:
-                    client = OpenAI(api_key=openai_api_key)  # Set the API key
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=messages_with_context
-                    )
-                    # Extract the message from the response
-                    msg = response.choices[0].message.content
+                    # Input from the user
+                    if prompt := st.chat_input():
+                        # Check if the API key is provided
+                        if not openai_api_key:
+                            st.info("Please add your OpenAI API key to continue.")
+                            st.stop()
 
-                    # Append the assistant's message to the session state
-                    st.session_state.messages.append({"role": "assistant", "content": msg})
-                    st.chat_message("assistant").write(msg)
-                except Exception as e:
-                    st.error(f"An error occurred: {e}")
+                        # Append the user message to the session state
+                        st.session_state.messages.append({"role": "user", "content": prompt})
+                        st.chat_message("user").write(prompt)
+
+                        # Append the document text to the context (if available)
+                        messages_with_context = st.session_state.messages.copy()
+                        if document_text:
+                            messages_with_context.append({"role": "system", "content": f"This is the document content:\n\n{document_text}"})
+
+                        # Call the OpenAI API to generate a response
+                        try:
+                            client = OpenAI(api_key=openai_api_key)  # Set the API key
+                            response = client.chat.completions.create(
+                                model="gpt-4o-mini",
+                                messages=messages_with_context
+                            )
+                            # Extract the message from the response
+                            msg = response.choices[0].message.content
+
+                            # Append the assistant's message to the session state
+                            st.session_state.messages.append({"role": "assistant", "content": msg})
+                            st.chat_message("assistant").write(msg)
+                        except Exception as e:
+                            st.error(f"An error occurred: {e}")
 
 
 
