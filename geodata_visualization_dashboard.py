@@ -1521,7 +1521,8 @@ elif st.session_state.selected == "Chatbot":
             st.header("Upload a file and ask me anything about it!") 
             
             uploaded_file = st.file_uploader("Upload your file", type=["pdf", "pptx", "docx"])
-            st.success("PDF uploaded successfully!")
+            if uploaded_file:
+                st.success("PDF uploaded successfully!")
             with st.sidebar:
                 st.title("")
                 st.title("")
@@ -1582,6 +1583,7 @@ elif st.session_state.selected == "Chatbot":
                             st.info("Please add your OpenAI API key to continue.")
                             st.stop()
             with col1:
+                if uploaded_file:
                     if st.button("See summary"):
                         
                         messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document and the in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not.This is the document content :\n\n{document_text}"}]
@@ -1605,7 +1607,7 @@ elif st.session_state.selected == "Chatbot":
                         context="."
 
                     if "messages" not in st.session_state:
-                        st.session_state["messages"] = [{"role": "assistant", "content": "Ask additional questions about the document?"}]
+                        st.session_state["messages"] = [{"role": "assistant", "content": "Hello, how can I help you?"}]
 
                     # Display chat history
                     for msg in st.session_state.messages:
