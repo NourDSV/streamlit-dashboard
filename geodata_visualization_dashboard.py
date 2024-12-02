@@ -137,7 +137,7 @@ if 'selected' not in st.session_state:
 selected_option  = option_menu(
 menu_title=None,
 options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector","Chatbot"],
-icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event","bi bi-filter"],
+icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event","bi bi-filter","bi bi-chat-dots"],
 menu_icon="cast",
 default_index=0,
 orientation="horizontal",
@@ -1497,29 +1497,37 @@ elif st.session_state.selected == "Regularity Detector":
 
 elif st.session_state.selected == "Chatbot":
         
-            def split_text_into_chunks(text, max_tokens=1500):
-                encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-                tokens = encoding.encode(text)
-                chunks = []
-                current_chunk = []
-                current_tokens = 0
+            # def split_text_into_chunks(text, max_tokens=1500):
+            #     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+            #     tokens = encoding.encode(text)
+            #     chunks = []
+            #     current_chunk = []
+            #     current_tokens = 0
 
-                for token in tokens:
-                    current_chunk.append(token)
-                    current_tokens += 1
-                    if current_tokens >= max_tokens:
-                        chunks.append(encoding.decode(current_chunk))
-                        current_chunk = []
-                        current_tokens = 0
+            #     for token in tokens:
+            #         current_chunk.append(token)
+            #         current_tokens += 1
+            #         if current_tokens >= max_tokens:
+            #             chunks.append(encoding.decode(current_chunk))
+            #             current_chunk = []
+            #             current_tokens = 0
 
-                if current_chunk:
-                    chunks.append(encoding.decode(current_chunk))
+            #     if current_chunk:
+            #         chunks.append(encoding.decode(current_chunk))
 
-                return chunks
-            st.title("💬 Chatbot")
-            st.caption("upload your file and ask me anything about it") 
-            openai_api_key = st.text_input("Put your api key")
-            uploaded_file = st.file_uploader("Upload a PDF", type=["pdf", "pptx", "docx"])
+                # return chunks
+
+            
+            st.header("Upload a file and ask me anything about it!") 
+            
+            uploaded_file = st.file_uploader("Upload your file", type=["pdf", "pptx", "docx"])
+            st.success("PDF uploaded successfully!")
+            with st.sidebar:
+                st.title("")
+                st.title("")
+                st.title("")
+                openai_api_key = st.text_input("Put your api key in here and press enter")
+                selected_language=st.selectbox("Change language",options=["English", "French", "Spanish", "Italian"])
 
           
             
@@ -1559,31 +1567,45 @@ elif st.session_state.selected == "Chatbot":
                     print("Unsupported file type.")
                     return ""
                 
-            # If a file is uploaded, extract its content
+            col1,col2= st.columns([2,1])
+            
             document_text = ""
+            message_placeholder = st.empty()
             if uploaded_file is not None:
+                
                 file_type = uploaded_file.name.split(".")[-1].lower()
                 document_text = extract_text_from_file(uploaded_file, file_type)
                 # document_chunks = split_text_into_chunks(document_text)
-                st.success("PDF uploaded successfully!")
-
-                if st.button("See summary"):
-                    messages = [{"role": "system", "content": f"Answer as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document and the in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,existing of Parcel yes or no,existing of groupage yes or no,existing of LTL yes or no,existing of FTL yes or no,existing of Intermodal yes or no,existing of Box trailers yes or no,existing of Curtain trailers yes or no,existing of Mega trailers yes or no,existing of Open trailers yes or no,existing of Reefer trailers yes or no,existing of Jumbo trailers yes or no,existing of Temperature controlled yes or no,existing of KFF - Keep From Freezing yes or no,existing of Taillift yes or no,existing of ADR yes or no,existing of Stand trailer yes or no,existing of Penalties yes or no.This is the document content :\n\n{document_text}"}]
-                    try:
-                        client = OpenAI(api_key=openai_api_key)  # Set the API key
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=messages)
-                        msg = response.choices[0].message.content
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
+                
+                
+                if not openai_api_key:
+                            st.info("Please add your OpenAI API key to continue.")
+                            st.stop()
+            with col1:
+                    if st.button("See summary"):
                         
-                        
-                    st.write(msg)
+                        messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document and the in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not.This is the document content :\n\n{document_text}"}]
+                        try:
+                            client = OpenAI(api_key=openai_api_key)  # Set the API key
+                            response = client.chat.completions.create(
+                                model="gpt-4o-mini",
+                                messages=messages)
+                            msg = response.choices[0].message.content
+                        except Exception as e:
+                            st.error(f"An error occurred: {e}")
+                            
+                            
+                        st.write(msg)
+            with col2:
+                    chat_role=st.selectbox("Ask a specialist", options=["tender analyst", "Legal consultant","Salesman","CEO"])
+                    chat_context=st.radio("",options=["Questions about the document","General question"])
+                    if chat_context=="Questions about the document":
+                        context=f"This is the document content:\n\n{document_text}"
+                    if chat_context=="General question":
+                        context="."
 
-                    # Initialize the message history if not already present
                     if "messages" not in st.session_state:
-                        st.session_state["messages"] = [{"role": "assistant", "content": "Do you have any further questions?"}]
+                        st.session_state["messages"] = [{"role": "assistant", "content": "Ask additional questions about the document?"}]
 
                     # Display chat history
                     for msg in st.session_state.messages:
@@ -1591,11 +1613,7 @@ elif st.session_state.selected == "Chatbot":
 
                     # Input from the user
                     if prompt := st.chat_input():
-                        # Check if the API key is provided
-                        if not openai_api_key:
-                            st.info("Please add your OpenAI API key to continue.")
-                            st.stop()
-
+                        
                         # Append the user message to the session state
                         st.session_state.messages.append({"role": "user", "content": prompt})
                         st.chat_message("user").write(prompt)
@@ -1603,7 +1621,7 @@ elif st.session_state.selected == "Chatbot":
                         # Append the document text to the context (if available)
                         messages_with_context = st.session_state.messages.copy()
                         if document_text:
-                            messages_with_context.append({"role": "system", "content": f"This is the document content:\n\n{document_text}"})
+                            messages_with_context.append({"role": "system", "content": f"answer as if you are a specialist a {chat_role}. {context}"})
 
                         # Call the OpenAI API to generate a response
                         try:
@@ -1620,8 +1638,9 @@ elif st.session_state.selected == "Chatbot":
                             st.chat_message("assistant").write(msg)
                         except Exception as e:
                             st.error(f"An error occurred: {e}")
+                        
 
-
+            
 
 
 
