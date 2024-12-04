@@ -1586,9 +1586,9 @@ elif st.session_state.selected == "Chatbot":
                 if uploaded_file:
                     if st.button("See summary"):
                         
-                        messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document and the in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not.This is the document content :\n\n{document_text}"}]
+                        messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document in one paragraph without returning to the line, and then in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not.This is the document content :\n\n{document_text}"}]
                         try:
-                            client = OpenAI(api_key=openai_api_key)  # Set the API key
+                            client = OpenAI(api_key=openai_api_key) 
                             response = client.chat.completions.create(
                                 model="gpt-4o-mini",
                                 messages=messages)
@@ -1598,6 +1598,30 @@ elif st.session_state.selected == "Chatbot":
                             
                             
                         st.write(msg)
+
+
+                        lines = msg.split("\n")
+                        structured_data = [line.split(": ", 1) for line in lines if ": " in line]
+                        
+                        df = pd.DataFrame(structured_data, columns=["Question", "Answer"])
+                        if not df.empty:
+                            def convert_df_to_excel(dataframe):
+                                from io import BytesIO
+                                output = BytesIO()
+                                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                                    dataframe.to_excel(writer, index=False, sheet_name='sheet1')
+                                return output.getvalue()
+
+                            # Add download button for Excel
+                            excel_data = convert_df_to_excel(df)
+                            st.download_button(
+                                label="Download this as an Excel File",
+                                data=excel_data,
+                                file_name="structured_data_summary.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            )
+
+
             with col2:
                     chat_role=st.selectbox("Ask a specialist", options=["tender analyst", "Legal consultant","Salesman","CEO"])
                     chat_context=st.radio("",options=["Questions about the document","General question"])
