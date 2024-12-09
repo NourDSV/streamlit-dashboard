@@ -22,6 +22,7 @@ from openai.types.chat.chat_completion import ChatCompletion, Choice
 import tiktoken
 from pptx import Presentation
 from docx import Document
+from streamlit_chat import message
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -1623,50 +1624,69 @@ elif st.session_state.selected == "Chatbot":
 
 
             with col2:
-                    chat_role=st.selectbox("Ask a specialist", options=["tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
-                    chat_context=st.radio("",options=["Questions about the document","General question"])
-                    if chat_context=="Questions about the document":
-                        context=f"This is the document content:\n\n{document_text}"
-                    if chat_context=="General question":
-                        context="."
+                if 'generated' not in st.session_state:
+                    st.session_state['generated'] = []
+                if 'past' not in st.session_state:
+                    st.session_state['past'] = []
+                chat_role=st.selectbox("Ask a specialist", options=["tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
+                chat_context=st.radio("",options=["Questions about the document","General question"])
+                if chat_context=="Questions about the document":
+                    context=f"This is the document content:\n\n{document_text}"
+                if chat_context=="General question":
+                    context="."
 
-                    if "messages" not in st.session_state:
-                        st.session_state["messages"] = [{"role": "assistant", "content": "Hello, how can I help you?"}]
 
-                    # Display chat history
-                    for msg in st.session_state.messages:
-                        st.chat_message(msg["role"]).write(msg["content"])
 
-                    # Input from the user
-                    if prompt := st.chat_input():
-                        
-                        # Append the user message to the session state
-                        st.session_state.messages.append({"role": "user", "content": prompt})
-                        st.chat_message("user").write(prompt)
+                if "messages" not in st.session_state:
+                    st.session_state["messages"] = [{"role": "assistant", "content": "Hello, how can I help you?"}]
 
-                        # Append the document text to the context (if available)
-                        messages_with_context = st.session_state.messages.copy()
-                        if document_text:
-                            messages_with_context.append({"role": "system", "content": f"answer as if you are a {chat_role}. {context}"})
 
-                        # Call the OpenAI API to generate a response
-                        try:
-                            client = OpenAI(api_key=openai_api_key)  # Set the API key
-                            response = client.chat.completions.create(
-                                model="gpt-4o-mini",
-                                messages=messages_with_context
-                            )
-                            # Extract the message from the response
-                            msg = response.choices[0].message.content
+                def generate_response(prompt):
+                    
+                    # Append the user message to the session state
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+                    
 
-                            # Append the assistant's message to the session state
-                            st.session_state.messages.append({"role": "assistant", "content": msg})
-                            st.chat_message("assistant").write(msg)
-                        except Exception as e:
-                            st.error(f"An error occurred: {e}")
-                        
+                    # Append the document text to the context (if available)
+                    messages_with_context = st.session_state.messages.copy()
+                    
+                    messages_with_context.append({"role": "system", "content": f"answer as if you are a {chat_role}. {context}"})
 
-            
+                    # Call the OpenAI API to generate a response
+                    try:
+                        client = OpenAI(api_key=openai_api_key)  # Set the API key
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=messages_with_context
+                        )
+                        # Extract the message from the response
+                        msg = response.choices[0].message.content
+
+                        # Append the assistant's message to the session state
+                        st.session_state['messages'].append({"role": "assistant", "content": msg})
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                    return msg
+
+                response_container = st.container()
+                # container for text box
+                container = st.container()
+
+                with container:
+                    with st.form(key='my_form', clear_on_submit=True):
+                        user_input = st.text_area("You:", key='input', height=100)
+                        submit_button = st.form_submit_button(label='Send')
+
+                    if submit_button and user_input:
+                        output = generate_response(user_input)
+                        st.session_state['past'].append(user_input)
+                        st.session_state['generated'].append(output)   
+
+                if st.session_state['generated']:
+                    with response_container:
+                        for i in range(len(st.session_state['generated'])):
+                            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="initials", seed="ME")
+                            message(st.session_state["generated"][i], key=str(i),avatar_style="initials", seed="AI")
 
 
 
