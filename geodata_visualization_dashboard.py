@@ -1621,7 +1621,8 @@ elif st.session_state.selected == "Chatbot":
                             file_name="structured_data_summary.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                         )
-
+                else:
+                    st.info("Upload a document to see the summary")
 
             with col2:
                 if 'generated' not in st.session_state:
