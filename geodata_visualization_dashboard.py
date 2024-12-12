@@ -1508,7 +1508,7 @@ elif st.session_state.selected == "Document":
         if password == PASSWORD:
             st.session_state["authenticated"] = True
             st.success("Authentication successful!")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("Invalid password. Please try again.")
 
