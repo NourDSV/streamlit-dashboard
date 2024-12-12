@@ -137,7 +137,7 @@ if 'selected' not in st.session_state:
 
 selected_option  = option_menu(
 menu_title=None,
-options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector","Chatbot"],
+options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector","Document"],
 icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event","bi bi-filter","bi bi-chat-dots"],
 menu_icon="cast",
 default_index=0,
@@ -1496,7 +1496,33 @@ elif st.session_state.selected == "Regularity Detector":
 
 
 
-elif st.session_state.selected == "Chatbot":
+elif st.session_state.selected == "Document":
+    PASSWORD = "password"
+
+    # Session state to track if the user is authenticated
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+
+    def authenticate(password):
+        """Authenticate the user by checking the password."""
+        if password == PASSWORD:
+            st.session_state["authenticated"] = True
+            st.success("Authentication successful!")
+            st.experimental_rerun()
+        else:
+            st.error("Invalid password. Please try again.")
+
+    # If the user is not authenticated, show the password input
+    if not st.session_state["authenticated"]:
+        
+        col1, col2, col3 = st.columns(3)
+        with col2:
+            st.title("Authentication Required")
+        
+        password_input = st.text_input("Enter password", type="password")
+        if st.button("Login"):
+            authenticate(password_input)
+    else:
         
             # def split_text_into_chunks(text, max_tokens=1500):
             #     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -1521,16 +1547,21 @@ elif st.session_state.selected == "Chatbot":
             
             st.header("Upload a file and ask me anything about it!") 
             
-            uploaded_file = st.file_uploader("Upload your file", type=["pdf", "pptx", "docx"])
-            if uploaded_file:
-                st.success("PDF uploaded successfully!")
+            
             with st.sidebar:
                 st.title("")
                 st.title("")
-                st.title("")
                 openai_api_key = st.text_input("Put your api key in here and press enter")
-                selected_language=st.selectbox("Change language",options=["English", "French", "Spanish", "Italian"])
+                
+                uploaded_file = st.file_uploader("Upload your file", type=["pdf", "pptx", "docx"])
+                if uploaded_file:
+                    st.success("PDF uploaded successfully!")
 
+                selected_language=st.selectbox("Change language",options=["English", "French", "Spanish", "Italian"])
+                
+                if st.button("Logout"):
+                    st.session_state["authenticated"] = False
+                    st.experimental_rerun()
           
             
 
@@ -1629,12 +1660,17 @@ elif st.session_state.selected == "Chatbot":
                     st.session_state['generated'] = []
                 if 'past' not in st.session_state:
                     st.session_state['past'] = []
-                chat_role=st.selectbox("Ask a specialist", options=["tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
+                
                 chat_context=st.radio("",options=["Questions about the document","General question"])
                 if chat_context=="Questions about the document":
                     context=f"This is the document content:\n\n{document_text}"
                 if chat_context=="General question":
                     context="."
+                chat_role=st.selectbox("Ask a specialist", options=["Tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
+                with st.expander("See and edit prompt"):
+                    editable_prompt = st.text_input("",value=f"Answer as if you are a {chat_role}")
+                # with st.expander("See prompt"):
+                #     st.write(f"Answer as if you are a {chat_role}")
 
 
 
@@ -1651,7 +1687,7 @@ elif st.session_state.selected == "Chatbot":
                     # Append the document text to the context (if available)
                     messages_with_context = st.session_state.messages.copy()
                     
-                    messages_with_context.append({"role": "system", "content": f"answer as if you are a {chat_role}. {context}"})
+                    messages_with_context.append({"role": "system", "content": f"{editable_prompt}. {context}"})
 
                     # Call the OpenAI API to generate a response
                     try:
