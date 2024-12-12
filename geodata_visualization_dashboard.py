@@ -1667,7 +1667,7 @@ elif st.session_state.selected == "Document":
                 if chat_context=="General question":
                     context="."
                 chat_role=st.selectbox("Ask a specialist", options=["Tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
-                with st.expander("See and edit prompt"):
+                with st.expander("See and edit prompt (Press enter to apply)"):
                     editable_prompt = st.text_input("",value=f"Answer as if you are a {chat_role}")
                 # with st.expander("See prompt"):
                 #     st.write(f"Answer as if you are a {chat_role}")
