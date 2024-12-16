@@ -1497,7 +1497,7 @@ elif st.session_state.selected == "Regularity Detector":
 
 
 elif st.session_state.selected == "Document":
-    PASSWORD = "password"
+    PASSWORD = "Dsv2025+"
 
     # Session state to track if the user is authenticated
     if "authenticated" not in st.session_state:
@@ -1618,7 +1618,7 @@ elif st.session_state.selected == "Document":
                 if uploaded_file:
                     
                         
-                    messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document in one paragraph without returning to the line, and then in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not.This is the document content :\n\n{document_text}"}]
+                    messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document in one paragraph without returning to the line, and then in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not, if yes type ': ' and write what are they in the same line, the Fuel Clause Mechanism,the Fuel share in rates,Threshold fuel price,Baseline reference date,Baseline price,Fuel based on,Current Fuel price,Current Fuel surcharge % ,Calculation Date FSC .This is the document content :\n\n{document_text}"}]
                     try:
                         client = OpenAI(api_key=openai_api_key) 
                         response = client.chat.completions.create(
@@ -1633,9 +1633,9 @@ elif st.session_state.selected == "Document":
 
 
                     lines = msg.split("\n")
-                    structured_data = [line.split(": ", 1) for line in lines if ": " in line]
+                    structured_data = [line.split(": ", 2) for line in lines if ": " in line]
                     
-                    df = pd.DataFrame(structured_data, columns=["Question", "Answer"])
+                    df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
                     if not df.empty:
                         def convert_df_to_excel(dataframe):
                             from io import BytesIO
