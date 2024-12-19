@@ -1619,7 +1619,7 @@ elif st.session_state.selected == "Document":
                 if uploaded_file:
                     
                         
-                    messages = [{"role": "system", "content": f"Answer in {selected_language}.In in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if Financial Penalties are explicitly mentioned no if not mentioned, if yes type ': ' and write what are they in the same line, the Fuel Clause Mechanism,the Fuel share in rates,Threshold fuel price,Baseline reference date,Baseline price,Fuel based on,Current Fuel price,Current Fuel surcharge % ,Calculation Date FSC,Go/NoGo:Go if none of the showstopper exist and NoGo otherwise and if no go put : and write what are the showstopper if Go put : and write that there's no showstoppers found. (showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments,they concern non-industrial goods (ie living animals),there are penalties on the documents)  .This is the document content :\n\n{document_text}"}]
+                    messages = [{'role': 'system', 'content': f'Answer in {selected_language}.In in bullet points I want specific answers of this,only if they exist if not just type no information :Customer name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist no if not and if yes  if the number of parcel is mentioned in the doc type ":" and write the number of parcel,groupage yes if it exist no if not if yes  if the number of groupage shipments is mentioned in the doc type ":" and write the number of groupage shipments,LTL yes if it exist no if not if yes  if the number of LTL shipments is mentioned in the doc type ":" and write the number of LTL shipments, FTL yes if it exist no if not, if yes and if the number of FTL exist type ":" and write the number of FTL shipments, Intermodal yes if it exist no if not if yes  if the number of intermodal shipments is mentioned in the doc type ":" and write it,Box trailers yes if it exist no if not if yes  if the number of box trailer shipments is mentioned in the doc type ":" and write it, Curtain trailers yes if it exist no if not if yes  if the number of curtain trailer shipments is mentioned in the doc type ":" and write it,Mega trailers yes if it exist no if not if yes  if the number of mega trailer shipments is mentioned in the doc type ":" and write it,Open trailers yes if it exist no if not if yes  if the number of open trailer shipment is mentioned in the doc type ":" and write it,Reefer trailers yes if it exist no if not if yes  if the number of reefer trailer shipments is mentioned in the doc type ":" and write it,Jumbo trailers yes if it exist no if not if yes  if the number of jumbo trailer shipments is mentioned in the doc type ":" and write it, Temperature controlled yes if it exist no if not if yes  if the number of tempreture controlled shipments is mentioned in the doc type ":" and write ,KFF - Keep From Freezing yes if it exist no if not if yes  if the number of KFF shipments is mentioned in the doc type ":" and write it,Taillift yes if it exist no if not if yes  if the number of taillifit shipments is mentioned in the doc type ":" and write it, ADR yes if it exist no if not if yes  if the number of ADR shipments is mentioned in the doc type ":" and write it, Stand trailer yes if it exist no if not if yes  if the number of stand trailer shipments is mentioned in the doc type : and write ,Control Tower yes if it exist no if not and if yes ad : and write a descriotion of the control tower needs,Total kg if mentioned type : and write (estimation in euro) then the result of the multiplication of total kg by 0.12,Penalties yes if Financial Penalties are explicitly mentioned no if not mentioned, if yes type :  and write what are they in the same line,the Fuel Clause Mechanism,the Fuel share in rates,Threshold fuel price,Baseline reference date,Baseline price,Fuel based on,Current Fuel price,Current Fuel surcharge % ,Calculation Date FSC,Go/NoGo:Go if none of the showstopper exist and NoGo otherwise and if no go put : and write what are the showstopper if Go put : and write that there is no showstoppers found.(showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments,they concern non-industrial goods (ie living animals),there are penalties on the documents)  .This is the document content :\n\n{document_text}'}]
                     try:
                         client = OpenAI(api_key=openai_api_key) 
                         response = client.chat.completions.create(
@@ -1642,39 +1642,26 @@ elif st.session_state.selected == "Document":
                     st.subheader("Summary")    
                     st.write(summary)
 
+                    summary_dataframe = pd.DataFrame({"Summary": [summary]})
+
                     col1,col2=st.columns([2,1.5])
                     with col1:
 
                         st.subheader("Questions") 
-                        lines = [line[1:] for line in msg.split("\n")[:29]]
+                        lines = [line[1:] for line in msg.split("\n")[:31]]
                         structured_data = [line.split(": ", 2) for line in lines if ": " in line]
                         structured_data=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
                         df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
                         # df.set_index("Question", inplace=True)
                         st.table(df)
-
-                        if not df.empty:
-                            def convert_df_to_excel(dataframe):
-                                from io import BytesIO
-                                output = BytesIO()
-                                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                                    dataframe.to_excel(writer, index=False, sheet_name='sheet1')
-                                return output.getvalue()
-
-                            # Add download button for Excel
-                            excel_data = convert_df_to_excel(df)
-                            st.download_button(
-                                label="📥 Download this as an Excel File",
-                                data=excel_data,
-                                file_name="structured_data_summary.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                            # st.write(df.to_html(index=False), unsafe_allow_html=True)
-                            
+                        try:
+                            excel_name=f'profilor RRF-{df["Answer"][0]}-deadline-{df["Answer"][4]}.xlsx'
+                        except:
+                            excel_name="Profilor RRF.xlsx"
 
                     with col2:
                         st.subheader("FSC")  
-                        lines_fuel = [line[1:] for line in msg.split("\n")[29:-1]]
+                        lines_fuel = [line[1:] for line in msg.split("\n")[31:-1]]
                         structured_data_fuel = [line.split(": ", 1) for line in lines_fuel if ": " in line]
                         # structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
                         df_fuel = pd.DataFrame(structured_data_fuel, columns=["Question", "Answer",])
@@ -1688,6 +1675,25 @@ elif st.session_state.selected == "Document":
                         df_go = pd.DataFrame(structured_data_go, columns=["Question", "Answer","Description"])
                         # df_fuel.set_index("Question", inplace=True)
                         st.table(df_go)
+
+                    if not df.empty:
+                        def convert_df_to_excel(datas):
+                            output = BytesIO()
+                            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                                for sheet,dataframe in datas.items():
+                                    dataframe.to_excel(writer, index=False, sheet_name=sheet)
+                            return output.getvalue()
+                    datas={"Summary":summary_dataframe,
+                            "Standard questions":df ,
+                            "Fuel surchage":df_fuel,
+                            "Go no go":df_go}
+                    # Add download button for Excel
+                    excel_data = convert_df_to_excel(datas)
+                    st.download_button(
+                        label="📥 Download as an Excel File",
+                        data=excel_data,
+                        file_name=excel_name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 else:
                     st.info("Upload a document to see the summary")
 
