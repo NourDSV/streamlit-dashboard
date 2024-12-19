@@ -17,9 +17,9 @@ from streamlit_option_menu import option_menu
 from io import BytesIO
 import PyPDF2
 from openai import OpenAI
-from openai.types.chat import ChatCompletionMessage
-from openai.types.chat.chat_completion import ChatCompletion, Choice
-import tiktoken
+# from openai.types.chat import ChatCompletionMessage
+# from openai.types.chat.chat_completion import ChatCompletion, Choice
+# import tiktoken
 from pptx import Presentation
 from docx import Document
 from streamlit_chat import message
@@ -1600,9 +1600,10 @@ elif st.session_state.selected == "Document":
                     print("Unsupported file type.")
                     return ""
                 
-            col1,col2= st.tabs(["Summary","Chat"])
+            tab1,tab2= st.tabs(["Summary","Chat"])
             
             document_text = ""
+            contxt="Context=You work in an European country for the Road division of a major international supplier of transport and logistics solutions offering a full range of services. The Road division -  which is the top leading road transport provider in Europe with 200 terminals and 300 offices – offers to its customers groupage (GRP) through his fully integrated network, partloads (LTL) and Full Trailer Loads (FTL). Your company is specialized in palletized industrial goods."
             message_placeholder = st.empty()
             if uploaded_file is not None:
                 
@@ -1614,11 +1615,11 @@ elif st.session_state.selected == "Document":
                 if not openai_api_key:
                             st.info("Please add your OpenAI API key to continue.")
                             st.stop()
-            with col1:
+            with tab1:
                 if uploaded_file:
                     
                         
-                    messages = [{"role": "system", "content": f"Answer in {selected_language} as if you are a tendermanager of an international logistic and transporation company .I want a summary of this document in one paragraph without returning to the line, and then in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if it exist or no if not, if yes type ': ' and write what are they in the same line, the Fuel Clause Mechanism,the Fuel share in rates,Threshold fuel price,Baseline reference date,Baseline price,Fuel based on,Current Fuel price,Current Fuel surcharge % ,Calculation Date FSC .This is the document content :\n\n{document_text}"}]
+                    messages = [{"role": "system", "content": f"Answer in {selected_language}.In in bullet points I want specific answer of this,only if they exist if not just type no information :Customer name,Project number/name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist or no if not,groupage yes if it exist or no if not,LTL yes if it exist or no if not, FTL yes if it exist or no if not, Intermodal yes if it exist or no if not, Box trailers yes if it exist or no if not, Curtain trailers yes if it exist or no if not, Mega trailers yes if it exist or no if not, Open trailers yes if it exist or no if not, Reefer trailers yes if it exist or no if not, Jumbo trailers yes if it exist or no if not, Temperature controlled yes if it exist or no if not, KFF - Keep From Freezing yes if it exist or no if not, Taillift yes if it exist or no if not, ADR yes if it exist or no if not, Stand trailer yes if it exist or no if not, Penalties yes if Financial Penalties are explicitly mentioned no if not mentioned, if yes type ': ' and write what are they in the same line, the Fuel Clause Mechanism,the Fuel share in rates,Threshold fuel price,Baseline reference date,Baseline price,Fuel based on,Current Fuel price,Current Fuel surcharge % ,Calculation Date FSC,Go/NoGo:Go if none of the showstopper exist and NoGo otherwise and if no go put : and write what are the showstopper if Go put : and write that there's no showstoppers found. (showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments,they concern non-industrial goods (ie living animals),there are penalties on the documents)  .This is the document content :\n\n{document_text}"}]
                     try:
                         client = OpenAI(api_key=openai_api_key) 
                         response = client.chat.completions.create(
@@ -1627,35 +1628,70 @@ elif st.session_state.selected == "Document":
                         msg = response.choices[0].message.content
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
+
+                    messages_summary = [{"role": "system", "content": f"Answer in {selected_language} I want a summary of this document in one paragraph:\n\n{document_text}"}]
+                    try:
+                        client = OpenAI(api_key=openai_api_key) 
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=messages_summary)
+                        summary = response.choices[0].message.content
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
                         
-                        
-                    st.write(msg)
+                    st.subheader("Summary")    
+                    st.write(summary)
 
+                    col1,col2=st.columns([2,1.5])
+                    with col1:
 
-                    lines = msg.split("\n")
-                    structured_data = [line.split(": ", 2) for line in lines if ": " in line]
-                    
-                    df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
-                    if not df.empty:
-                        def convert_df_to_excel(dataframe):
-                            from io import BytesIO
-                            output = BytesIO()
-                            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                                dataframe.to_excel(writer, index=False, sheet_name='sheet1')
-                            return output.getvalue()
+                        st.subheader("Questions") 
+                        lines = [line[1:] for line in msg.split("\n")[:29]]
+                        structured_data = [line.split(": ", 2) for line in lines if ": " in line]
+                        structured_data=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
+                        df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
+                        # df.set_index("Question", inplace=True)
+                        st.table(df)
 
-                        # Add download button for Excel
-                        excel_data = convert_df_to_excel(df)
-                        st.download_button(
-                            label="📥 Download this as an Excel File",
-                            data=excel_data,
-                            file_name="structured_data_summary.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
+                        if not df.empty:
+                            def convert_df_to_excel(dataframe):
+                                from io import BytesIO
+                                output = BytesIO()
+                                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                                    dataframe.to_excel(writer, index=False, sheet_name='sheet1')
+                                return output.getvalue()
+
+                            # Add download button for Excel
+                            excel_data = convert_df_to_excel(df)
+                            st.download_button(
+                                label="📥 Download this as an Excel File",
+                                data=excel_data,
+                                file_name="structured_data_summary.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                            # st.write(df.to_html(index=False), unsafe_allow_html=True)
+                            
+
+                    with col2:
+                        st.subheader("FSC")  
+                        lines_fuel = [line[1:] for line in msg.split("\n")[29:-1]]
+                        structured_data_fuel = [line.split(": ", 1) for line in lines_fuel if ": " in line]
+                        # structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
+                        df_fuel = pd.DataFrame(structured_data_fuel, columns=["Question", "Answer",])
+                        # df_fuel.set_index("Question", inplace=True)
+                        st.table(df_fuel)
+
+                        st.subheader("GO or NoGO") 
+                        lines_go = [line[1:] for line in msg.split("\n")[-1:]]
+                        structured_data_go = [line.split(": ", 2) for line in lines_go if ": " in line]
+                        structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
+                        df_go = pd.DataFrame(structured_data_go, columns=["Question", "Answer","Description"])
+                        # df_fuel.set_index("Question", inplace=True)
+                        st.table(df_go)
                 else:
                     st.info("Upload a document to see the summary")
 
-            with col2:
+            with tab2:
                 if 'generated' not in st.session_state:
                     st.session_state['generated'] = []
                 if 'past' not in st.session_state:
@@ -1669,8 +1705,7 @@ elif st.session_state.selected == "Document":
                 chat_role=st.selectbox("Ask a specialist", options=["Tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
                 with st.expander("See and edit prompt (Press enter to apply)"):
                     editable_prompt = st.text_input("",value=f"Answer as if you are a {chat_role}")
-                # with st.expander("See prompt"):
-                #     st.write(f"Answer as if you are a {chat_role}")
+                
 
 
 
@@ -1725,5 +1760,4 @@ elif st.session_state.selected == "Document":
                             message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="initials", seed="ME")
                             message(st.session_state["generated"][i], key=str(i),avatar_style="initials", seed="AI")
 
-
-
+          
