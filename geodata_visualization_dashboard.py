@@ -1600,7 +1600,7 @@ elif st.session_state.selected == "Document":
                     print("Unsupported file type.")
                     return ""
                 
-            tab1,tab2= st.tabs(["Summary","Chat"])
+            tab1,tab2,tab3= st.tabs(["Summary","Chat","Strategy/PPt presentation"])
             
             document_text = ""
             contxt="Context=You work in an European country for the Road division of a major international supplier of transport and logistics solutions offering a full range of services. The Road division -  which is the top leading road transport provider in Europe with 200 terminals and 300 offices – offers to its customers groupage (GRP) through his fully integrated network, partloads (LTL) and Full Trailer Loads (FTL). Your company is specialized in palletized industrial goods."
@@ -1619,7 +1619,9 @@ elif st.session_state.selected == "Document":
                 if uploaded_file:
                     
                         
-                    messages = [{'role': 'system', 'content': f'Answer in {selected_language}.In in bullet points I want specific answers of this,only if they exist if not just type no information :Customer name,Project number/name,Customer sector,Expected number of rounds,deadline to answer the tender,Customer decision date,General customer info,Tender scope,Award strategy,Contract validity,Rate validity,Start date,Parcel yes if it exist no if not and if yes  if the number of parcel is mentioned in the doc type ":" and write the number of parcel,groupage yes if it exist no if not if yes  if the number of groupage shipments is mentioned in the doc type ":" and write the number of groupage shipments,LTL yes if it exist no if not if yes  if the number of LTL shipments is mentioned in the doc type ":" and write the number of LTL shipments, FTL yes if it exist no if not, if yes and if the number of FTL exist type ":" and write the number of FTL shipments, Intermodal yes if it exist no if not if yes  if the number of intermodal shipments is mentioned in the doc type ":" and write it,Box trailers yes if it exist no if not if yes  if the number of box trailer shipments is mentioned in the doc type ":" and write it, Curtain trailers yes if it exist no if not if yes  if the number of curtain trailer shipments is mentioned in the doc type ":" and write it,Mega trailers yes if it exist no if not if yes  if the number of mega trailer shipments is mentioned in the doc type ":" and write it,Open trailers yes if it exist no if not if yes  if the number of open trailer shipment is mentioned in the doc type ":" and write it,Reefer trailers yes if it exist no if not if yes  if the number of reefer trailer shipments is mentioned in the doc type ":" and write it,Jumbo trailers yes if it exist no if not if yes  if the number of jumbo trailer shipments is mentioned in the doc type ":" and write it, Temperature controlled yes if it exist no if not if yes  if the number of tempreture controlled shipments is mentioned in the doc type ":" and write ,KFF - Keep From Freezing yes if it exist no if not if yes  if the number of KFF shipments is mentioned in the doc type ":" and write it,Taillift yes if it exist no if not if yes  if the number of taillifit shipments is mentioned in the doc type ":" and write it, ADR yes if it exist no if not if yes  if the number of ADR shipments is mentioned in the doc type ":" and write it, Stand trailer yes if it exist no if not if yes  if the number of stand trailer shipments is mentioned in the doc type : and write ,Control Tower yes if it exist no if not and if yes ad : and write a descriotion of the control tower needs,Total kg if mentioned type : and write (estimation in euro) then the result of the multiplication of total kg by 0.12,Penalties yes if Financial Penalties are explicitly mentioned no if not mentioned, if yes type :  and write what are they in the same line,the Fuel Clause Mechanism,the Fuel share in rates,Threshold fuel price,Baseline reference date,Baseline price,Fuel based on,Current Fuel price,Current Fuel surcharge % ,Calculation Date FSC,Go/NoGo:Go if none of the showstopper exist and NoGo otherwise and if no go put : and write what are the showstopper if Go put : and write that there is no showstoppers found.(showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments,they concern non-industrial goods (ie living animals),there are penalties on the documents)  .This is the document content :\n\n{document_text}'}]
+                    messages = [{'role': 'system', 'content': f'Answer in {selected_language}.In in bullet points I want specific answers of this, only if they exist if not just type “no information” :Customer name, Project number/name, Customer sector, Expected number of rounds, deadline to answer the tender, Customer decision date, General customer info, Tender scope, Award strategy, Contract validity, Rate validity, Start date,Payment terms, Palletized goods, Parcel yes if it exist no if not, groupage yes if it exist no if not, LTL yes if it exist no if not, FTL “yes” if it exist “no” if not, Intermodal yes if it exist no if not, Box trailers yes if it exist no if not, Curtain trailers yes if it exist no if not, Mega trailers yes if it exist no if not, Open trailers yes if it exist no if not, Reefer trailers yes if it exist no if not, Jumbo trailers yes if it exist no if not, Temperature controlled yes if it exist no if not, KFF - Keep From Freezing yes if it exist no if not, Tail-lift yes if it exist no if not, ADR yes if it exist no if, Stand trailer yes if it exist no if not, Control Tower yes if it exist no if not and (if yes add “:” and write a description of the control tower needs), Total kg (if mentioned type “:” and write “estimation in euro” then the result of the multiplication of total kg by 0.12), Penalties yes if Financial Penalties are explicitly mentioned no if not (if yes type “:”  and write what are they in the same line), the Fuel Clause Mechanism, the Fuel share in rates, Threshold fuel price, Baseline reference date, Baseline price, Fuel based on, Current Fuel price, Current Fuel surcharge % ,Calculation Date FSC, Go/NoGo:Go if none of the showstopper exist and NoGo otherwise and if no go put “:” and write what are the showstopper if Go put “:” and write that there are no showstoppers found.(showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments, they concern non-industrial goods (ie living animals),there are penalties on the documents)  .This is the document content :\n\n{document_text}'}]
+
+
                     try:
                         client = OpenAI(api_key=openai_api_key) 
                         response = client.chat.completions.create(
@@ -1629,13 +1631,16 @@ elif st.session_state.selected == "Document":
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
 
-                    messages_summary = [{"role": "system", "content": f"Answer in {selected_language} I want a summary of this document in one paragraph:\n\n{document_text}"}]
+                    messages_summary = [{"role": "system", "content": f"Answer in {selected_language} I want a summary of this document in one paragraph and then in bullet points i want recommendation of a strategy to win this tender:\n\n{document_text}"}]
                     try:
                         client = OpenAI(api_key=openai_api_key) 
                         response = client.chat.completions.create(
                             model="gpt-4o-mini",
                             messages=messages_summary)
-                        summary = response.choices[0].message.content
+                        summary_strategy = response.choices[0].message.content
+                        split_response = summary_strategy.split("\n\n", 1)
+                        summary = split_response[0].strip()  
+                        recommendations = split_response[1].strip() if len(split_response) > 1 else ""
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                         
@@ -1648,11 +1653,12 @@ elif st.session_state.selected == "Document":
                     with col1:
 
                         st.subheader("Questions") 
-                        lines = [line[1:] for line in msg.split("\n")[:31]]
+                        lines = [line[1:] for line in msg.split("\n")[:33]]
                         structured_data = [line.split(": ", 2) for line in lines if ": " in line]
                         structured_data=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
                         df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
-                        # df.set_index("Question", inplace=True)
+                        
+                        df.set_index("Question", inplace=True)
                         st.table(df)
                         try:
                             excel_name=f'profilor RRF-{df["Answer"][0]}-deadline-{df["Answer"][4]}.xlsx'
@@ -1661,11 +1667,11 @@ elif st.session_state.selected == "Document":
 
                     with col2:
                         st.subheader("FSC")  
-                        lines_fuel = [line[1:] for line in msg.split("\n")[31:-1]]
+                        lines_fuel = [line[1:] for line in msg.split("\n")[33:-1]]
                         structured_data_fuel = [line.split(": ", 1) for line in lines_fuel if ": " in line]
                         # structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
                         df_fuel = pd.DataFrame(structured_data_fuel, columns=["Question", "Answer",])
-                        # df_fuel.set_index("Question", inplace=True)
+                        df_fuel.set_index("Question", inplace=True)
                         st.table(df_fuel)
 
                         st.subheader("GO or NoGO") 
@@ -1673,8 +1679,12 @@ elif st.session_state.selected == "Document":
                         structured_data_go = [line.split(": ", 2) for line in lines_go if ": " in line]
                         structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
                         df_go = pd.DataFrame(structured_data_go, columns=["Question", "Answer","Description"])
-                        # df_fuel.set_index("Question", inplace=True)
+                        df_go.set_index("Question", inplace=True)
                         st.table(df_go)
+
+                        
+
+
 
                     if not df.empty:
                         def convert_df_to_excel(datas):
@@ -1708,9 +1718,9 @@ elif st.session_state.selected == "Document":
                     context=f"This is the document content:\n\n{document_text}"
                 if chat_context=="General question":
                     context="."
-                chat_role=st.selectbox("Ask a specialist", options=["Tender analyst", "Legal consultant","Salesman","CEO", "Not a specialist"])
+                chat_role=st.selectbox("Ask a specialist", options=["Business analyst", "Legal consultant","Sales specialist","CEO", "Not a specialist"])
                 with st.expander("See and edit prompt (Press enter to apply)"):
-                    editable_prompt = st.text_input("",value=f"Answer as if you are a {chat_role}")
+                    editable_prompt = st.text_input("",value=f"Answer as if you are a {chat_role}  {contxt} ")
                 
 
 
@@ -1766,4 +1776,16 @@ elif st.session_state.selected == "Document":
                             message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="initials", seed="ME")
                             message(st.session_state["generated"][i], key=str(i),avatar_style="initials", seed="AI")
 
-          
+            with tab3:
+                st.subheader("Strategy recommendations")
+                st.write(recommendations)
+                message = [{"role": "system", "content": f"Answer in {selected_language} As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
+                try:
+                    client = OpenAI(api_key=openai_api_key) 
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=message)
+                    ppt = response.choices[0].message.content
+                except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                st.write(ppt)
