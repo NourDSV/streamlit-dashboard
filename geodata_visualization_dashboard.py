@@ -94,7 +94,7 @@ def process_data(data, selected_dsv_country, selected_parcel, selected_grp, sele
     data['ldm'] = pd.to_numeric(data['ldm'], errors='coerce')
     data['m3'] = pd.to_numeric(data['m3'], errors='coerce')
     if factor=="Yes":
-        if input_factor != 1750:
+        
             data["ldm_eq"]=data.apply(lambda row: max(row['ldm'], row['kg'] / float(input_factor)), axis=1)
             data["ldm"]=data["ldm_eq"]
             st.session_state.factor_phrase= (f" |kg/ldm factor ={st.session_state.input_factor}")
@@ -1686,15 +1686,6 @@ elif st.session_state.selected == "Document":
                             df_go1=df_go.set_index("Question")
                             st.table(df_go1)
 
-                    message = [{"role": "system", "content": f"Answer in {selected_language}, As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
-                    try:
-                        client = OpenAI(api_key=openai_api_key) 
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=message)
-                        ppt = response.choices[0].message.content
-                    except Exception as e:
-                            st.error(f"An error occurred: {e}")
                         
 
 
@@ -1709,8 +1700,7 @@ elif st.session_state.selected == "Document":
                     datas={"Summary":summary_dataframe,
                             "Standard questions":df ,
                             "Fuel surchage":df_fuel,
-                            "Go no go":df_go,
-                            "PPt Strategy":ppt}
+                            "Go no go":df_go}
                     # Add download button for Excel
                     excel_data = convert_df_to_excel(datas)
                     st.download_button(
@@ -1794,6 +1784,15 @@ elif st.session_state.selected == "Document":
                 if uploaded_file:
                     st.subheader("Strategy recommendations")
                     st.write(recommendations)
+                    message = [{"role": "system", "content": f"Answer in {selected_language} As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
+                    try:
+                        client = OpenAI(api_key=openai_api_key) 
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=message)
+                        ppt = response.choices[0].message.content
+                    except Exception as e:
+                            st.error(f"An error occurred: {e}")
                     st.write(ppt)
                 else:
                     st.info("Upload a document to see the summary")
