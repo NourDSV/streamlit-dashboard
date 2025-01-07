@@ -1007,7 +1007,7 @@ elif st.session_state.selected == "Collection Analysis":
             
           
 
-
+                      ##################################################################################################
 # Page for basic data analysis
 elif st.session_state.selected == "Maps":
     
@@ -1022,6 +1022,7 @@ elif st.session_state.selected == "Maps":
                 selected_branch = st.multiselect('Select branch', options=data['Branch'].unique())
                 selected_level = st.selectbox('Select a level', ["country level", "Nuts1", "Nuts2", "Nuts3"])
                 produit= st.multiselect('Select type of product', options=data['Product'].unique())
+                selected_variable=st.selectbox('Select the variable to see the map based on', options=["Number of shipments","PW DSV","kg","ldm","m3"])
                 if data['Date'].isna().sum() == 0:
                     data['Date'] = pd.to_datetime(data['Date'])
 
@@ -1141,45 +1142,51 @@ elif st.session_state.selected == "Maps":
 
             data_to = data[(data['ZC from'] == selected_country)]
             
-
-            data_to=data_to.groupby(["ZC to"],as_index=False)["PW DSV"].count()
+            if selected_variable!="Number of shipments":
+                data_to=data_to.groupby(["ZC to"],as_index=False)[selected_variable].sum()
+                selected_variable_column=selected_variable
+            else:
+                selected_variable="PW DSV"
+                data_to=data_to.groupby(["ZC to"],as_index=False)[selected_variable].count()
+                selected_variable_column="Number of shipments"
+                
             data_to=pd.merge(data_to,zip_code,on='ZC to',how="left")
             data_to['count'] = data_to.groupby('ZC to')['ZC to'].transform('count')
-            data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
+            data_to[selected_variable]=(data_to[selected_variable])/data_to["count"]
 
     
         
 
             if selected_level== "country level":
-                data_to=data_to.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+                data_to=data_to.groupby(["nuts0"],as_index=False)[selected_variable].sum()
                 merge=pd.merge(levl0,data_to,right_on="nuts0" ,left_on="ISO2",how="right")
-                colums=["nuts0","PW DSV"]
+                colums=["nuts0",selected_variable]
                 key="properties.ISO2"
-                field=["NAME","PW DSV"]
-                alias=["To : ", "Number of shipments: "]
+                field=["NAME",selected_variable]
+                alias=["To : ", f"{selected_variable_column}: "]
                 
             
             elif selected_level== "Nuts1":
-                data_to=data_to.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
+                data_to=data_to.groupby(["nuts1"],as_index=False)[selected_variable].sum()
                 merge=pd.merge(levl1,data_to,right_on="nuts1" ,left_on="NUTS_ID",how="right")
-                colums=["nuts1","PW DSV"]
+                colums=["nuts1",selected_variable]
                 key="properties.NUTS_ID"
-                field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                alias=["To: " ,"NUTS_ID: ",  "Number of shipments: "]
+                field=["NUTS_NAME","NUTS_ID",selected_variable]
+                alias=["To: " ,"NUTS_ID: ",  f"{selected_variable_column}: "]
             elif selected_level== "Nuts2":
-                data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
+                data_to=data_to.groupby(["nuts2"],as_index=False)[selected_variable].sum()
                 merge=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
-                colums=["nuts2","PW DSV"]
+                colums=["nuts2",selected_variable]
                 key="properties.NUTS_ID"
-                field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                alias=["To: " ,"NUTS_ID: ",  "Number of shipments: "]
+                field=["NUTS_NAME","NUTS_ID",selected_variable]
+                alias=["To: " ,"NUTS_ID: ",  f"{selected_variable_column}: "]
             elif selected_level== "Nuts3":
-                data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
+                data_to=data_to.groupby(["NUTS3"],as_index=False)[selected_variable].sum()
                 merge=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
-                colums=["NUTS3","PW DSV"]
+                colums=["NUTS3",selected_variable]
                 key="properties.NUTS_ID"
-                field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                alias=["To: " ,"NUTS_ID: ",  "Number of shipments: "]
+                field=["NUTS_NAME","NUTS_ID",selected_variable]
+                alias=["To: " ,"NUTS_ID: ",  f"{selected_variable_column}: "]
 
     
             
@@ -1244,9 +1251,11 @@ elif st.session_state.selected == "Maps":
                     selected_country_to = st.selectbox('Select Shipments to:', ship_to)
                 with col4:
                     st.empty()
+                    
                 data_to = data[(data['ZC to'] == selected_country_to)]
 
                 data_to=data_to.groupby(["ZC from"],as_index=False)["PW DSV"].count()
+                
                 data_to=pd.merge(data_to,zip_code,right_on='ZC to',left_on="ZC from",how="left")
                 data_to['count'] = data_to.groupby('ZC from')['ZC from'].transform('count')
                 data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
@@ -1619,7 +1628,7 @@ elif st.session_state.selected == "Document":
                 if uploaded_file:
                     
                         
-                    messages = [{'role': 'system', 'content': f'Answer in {selected_language} .in in bullet points I want specific answers of this, only if they exist if not just type “no information” :Customer name, Project number/name, Customer sector, Expected number of rounds, deadline to answer the tender, Customer decision date, General customer info, Tender scope, Award strategy, Contract validity, Rate validity, Start date,Payment terms, Palletized goods, Parcel yes if it exist no if not, groupage yes if it exist no if not, LTL yes if it exist no if not, FTL “yes” if it exist “no” if not, Intermodal yes if it exist no if not, Box trailers yes if it exist no if not, Curtain trailers yes if it exist no if not, Mega trailers yes if it exist no if not, Open trailers yes if it exist no if not, Reefer trailers yes if it exist no if not, Jumbo trailers yes if it exist no if not, Temperature controlled yes if it exist no if not, KFF - Keep From Freezing yes if it exist no if not, Tail-lift yes if it exist no if not, ADR yes if it exist no if, Stand trailer yes if it exist no if not, Control Tower yes if it exist no if not and (if yes add “:” and write a description of the control tower needs), Total kg (if mentioned type “:” and write “estimation in euro” then the result of the multiplication of total kg by 0.12), Penalties yes if Financial Penalties are explicitly mentioned no if not (if yes type “:”  and write what are they in the same line), the Fuel Clause Mechanism, the Fuel share in rates, Threshold fuel price, Baseline reference date, Baseline price, Fuel based on, Current Fuel price, Current Fuel surcharge % ,Calculation Date FSC, Go/NoGo:Go if none of the showstopper exist and NoGo if one or more showstopper exist and if no go put “:” and write what are the showstopper if Go put “:” and write that there are no showstoppers found.(showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments, they concern non-industrial goods (ie living animals),there are financial penalties, palette exchange.) .This is the document content :\n\n{document_text}'}]
+                    messages = [{'role': 'system', 'content': f'Answer in {selected_language} .in bullet points I want specific answers of this, only if they exist if not just type “no information” :Customer name, Project number/name, Customer sector, Expected number of rounds, deadline to answer the tender, Customer decision date, General customer info, Tender scope, Award strategy, Contract validity, Rate validity, Start date,Payment terms, Palletized goods, Parcel yes if it exist no if not, groupage yes if it exist no if not, LTL yes if it exist no if not, FTL “yes” if it exist “no” if not, Intermodal yes if it exist no if not, Box trailers yes if it exist no if not, Curtain trailers yes if it exist no if not, Mega trailers yes if it exist no if not, Open trailers yes if it exist no if not, Reefer trailers yes if it exist no if not, Jumbo trailers yes if it exist no if not, Temperature controlled yes if it exist no if not, KFF - Keep From Freezing yes if it exist no if not, Tail-lift yes if it exist no if not, ADR yes if it exist no if, Stand trailer yes if it exist no if not, Control Tower yes if it exist no if not and (if yes add “:” and write a description of the control tower needs), Total kg (if mentioned type “:” and write “estimation in euro” then the result of the multiplication of total kg by 0.12), Penalties yes if Financial Penalties are explicitly mentioned no if not (if yes type “:”  and write what are they in the same line), the Fuel Clause Mechanism, the Fuel share in rates, Threshold fuel price, Baseline reference date, Baseline price, Fuel based on, Current Fuel price, Current Fuel surcharge % ,Calculation Date FSC, Go/NoGo:Go if none of the showstopper exist and NoGo if one or more showstopper exist and if no go put “:” and write what are the showstopper if Go put “:” and write that there are no showstoppers found.(showstopper=100% of transports concern thermo trailers (temperature control),100% of transports concern parcels or non-palletized goods or bulk shipments, they concern non-industrial goods (ie living animals),there are financial penalties, palette exchange.) .This is the document content :\n\n{document_text}'}]
 
 
                     try:
@@ -1648,6 +1657,18 @@ elif st.session_state.selected == "Document":
                     st.write(summary)
 
                     summary_dataframe = pd.DataFrame({"Summary": [summary]})
+
+                    message = [{"role": "system", "content": f"Answer in {selected_language} As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
+                    try:
+                        client = OpenAI(api_key=openai_api_key) 
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=message)
+                        ppt = response.choices[0].message.content
+                    except Exception as e:
+                            st.error(f"An error occurred: {e}")
+                    ppt_dataframe = pd.DataFrame({"PPt Presentation": [ppt]})
+
 
                     col1,col2=st.columns([2,1.5])
                     with col1:
@@ -1694,20 +1715,62 @@ elif st.session_state.selected == "Document":
                         def convert_df_to_excel(datas):
                             output = BytesIO()
                             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                                for sheet,dataframe in datas.items():
-                                    dataframe.to_excel(writer, index=False, sheet_name=sheet)
+                                for sheet_name,dataframe in datas.items():
+                                    dataframe.to_excel(writer, index=False, sheet_name=sheet_name)
+
+                                    workbook = writer.book
+                                    worksheet = writer.sheets[sheet_name]
+                                    
+                                    # Add custom formats
+                                    header_format = workbook.add_format({
+                                        'bold': True,
+                                        'font_color': 'white',
+                                        'bg_color': '#4F81BD',
+                                        'align': 'center',
+                                        'valign': 'vcenter',
+                                        'border': 1
+                                    })
+                                    cell_format = workbook.add_format({
+                                        'text_wrap': True,
+                                        'valign': 'top',
+                                        'border': 1
+                                    })
+                                    
+                                    # Apply header format
+                                    for col_num, value in enumerate(dataframe.columns.values):
+                                        worksheet.write(0, col_num, value, header_format)
+                                    
+                                    # Apply cell format to the data
+                                    for row_num in range(1, len(dataframe) + 1):
+                                        for col_num in range(len(dataframe.columns)):
+                                            worksheet.write(row_num, col_num, dataframe.iloc[row_num - 1, col_num], cell_format)
+                                    
+                                    # Adjust column widths
+                                    max_width = 100
+                                    for i, col in enumerate(dataframe.columns):
+                                        max_len = max(
+                                            dataframe[col].astype(str).map(len).max(),  # Maximum length in column
+                                            len(str(col))  # Length of the column header
+                                        ) + 2  # Add some padding
+
+                                        adjusted_width = min(max_len, max_width)
+                                        worksheet.set_column(i, i, adjusted_width)
+
                             return output.getvalue()
+
                     datas={"Summary":summary_dataframe,
                             "Standard questions":df ,
                             "Fuel surchage":df_fuel,
-                            "Go no go":df_go}
+                            "Go no go":df_go,
+                            "PPt Presentation": ppt_dataframe}
                     # Add download button for Excel
-                    excel_data = convert_df_to_excel(datas)
-                    st.download_button(
-                        label="📥 Download as an Excel File",
-                        data=excel_data,
-                        file_name=excel_name,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    with st.sidebar:
+                        excel_data = convert_df_to_excel(datas)
+                        st.download_button(
+                            label="📥 Download as an Excel File",
+                            data=excel_data,
+                            file_name=excel_name,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 else:
                     st.info("Upload a document to see the summary")
 
@@ -1784,15 +1847,7 @@ elif st.session_state.selected == "Document":
                 if uploaded_file:
                     st.subheader("Strategy recommendations")
                     st.write(recommendations)
-                    message = [{"role": "system", "content": f"Answer in {selected_language} As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
-                    try:
-                        client = OpenAI(api_key=openai_api_key) 
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=message)
-                        ppt = response.choices[0].message.content
-                    except Exception as e:
-                            st.error(f"An error occurred: {e}")
+
                     st.write(ppt)
                 else:
                     st.info("Upload a document to see the summary")
