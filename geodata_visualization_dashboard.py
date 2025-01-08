@@ -1254,46 +1254,52 @@ elif st.session_state.selected == "Maps":
                     
                 data_to = data[(data['ZC to'] == selected_country_to)]
 
-                data_to=data_to.groupby(["ZC from"],as_index=False)["PW DSV"].count()
-                
+                if selected_variable!="Number of shipments":
+
+                    data_to=data_to.groupby(["ZC from"],as_index=False)[selected_variable].sum()
+                    selected_variable_column=selected_variable
+                else:
+                    selected_variable="PW DSV"
+                    data_to=data_to.groupby(["ZC from"],as_index=False)[selected_variable].count()
+                    selected_variable_column="Number of shipments"
+
                 data_to=pd.merge(data_to,zip_code,right_on='ZC to',left_on="ZC from",how="left")
                 data_to['count'] = data_to.groupby('ZC from')['ZC from'].transform('count')
-                data_to["PW DSV"]=(data_to["PW DSV"])/data_to["count"]
+                data_to[selected_variable]=(data_to[selected_variable])/data_to["count"]
 
         
             
 
                 if selected_level== "country level":
-                    data_to=data_to.groupby(["nuts0"],as_index=False)["PW DSV"].sum()
+                    data_to=data_to.groupby(["nuts0"],as_index=False)[selected_variable].sum()
                     merge_to=pd.merge(levl0,data_to,right_on="nuts0" ,left_on="ISO2",how="right")
-                    colums=["nuts0","PW DSV"]
+                    colums=["nuts0",selected_variable]
                     key="properties.ISO2"
-                    field=["NAME","PW DSV"]
-                    alias=["From : ", "Number of shipments: "]
+                    field=["NAME",selected_variable]
+                    alias=["From : ", f"{selected_variable_column} : "]
                     
                 
                 elif selected_level== "Nuts1":
-                    data_to=data_to.groupby(["nuts1"],as_index=False)["PW DSV"].sum()
+                    data_to=data_to.groupby(["nuts1"],as_index=False)[selected_variable].sum()
                     merge_to=pd.merge(levl1,data_to,right_on="nuts1" ,left_on="NUTS_ID",how="right")
-                    colums=["nuts1","PW DSV"]
+                    colums=["nuts1",selected_variable]
                     key="properties.NUTS_ID"
-                    field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["From: " ,"NUTS_ID: ",  "Number of shipments: "]
+                    field=["NUTS_NAME","NUTS_ID",selected_variable]
+                    alias=["From: " ,"NUTS_ID: ",  f"{selected_variable_column} : "]
                 elif selected_level== "Nuts2":
-                    data_to=data_to.groupby(["nuts2"],as_index=False)["PW DSV"].sum()
+                    data_to=data_to.groupby(["nuts2"],as_index=False)[selected_variable].sum()
                     merge_to=pd.merge(levl2,data_to,right_on="nuts2" ,left_on="NUTS_ID",how="right")
-                    colums=["nuts2","PW DSV"]
+                    colums=["nuts2",selected_variable]
                     key="properties.NUTS_ID"
-                    field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["From: " ,"NUTS_ID: ",  "Number of shipments: "]
+                    field=["NUTS_NAME","NUTS_ID",selected_variable]
+                    alias=["From: " ,"NUTS_ID: ",  f"{selected_variable_column} : "]
                 elif selected_level== "Nuts3":
-                    data_to=data_to.groupby(["NUTS3"],as_index=False)["PW DSV"].sum()
+                    data_to=data_to.groupby(["NUTS3"],as_index=False)[selected_variable].sum()
                     merge_to=pd.merge(levl3,data_to,right_on="NUTS3" ,left_on="NUTS_ID",how="right")
-                    colums=["NUTS3","PW DSV"]
+                    colums=["NUTS3",selected_variable]
                     key="properties.NUTS_ID"
-                    field=["NUTS_NAME","NUTS_ID","PW DSV"]
-                    alias=["From: " ,"NUTS_ID: ",  "Number of shipments: "]
-
+                    field=["NUTS_NAME","NUTS_ID",selected_variable]
+                    alias=["From: " ,"NUTS_ID: ",  f"{selected_variable_column} : "]
         
                 
                 choropleth1=folium.Choropleth(
