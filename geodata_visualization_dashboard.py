@@ -1008,7 +1008,7 @@ elif st.session_state.selected == "Collection Analysis":
           
 
                       ##################################################################################################
-# Page for basic data analysis
+# Page for Map
 elif st.session_state.selected == "Maps":
     
     st.write("**Filters option**")
@@ -1082,46 +1082,89 @@ elif st.session_state.selected == "Maps":
                     TagFilterButton(categories).add_to(m)
                     TagFilterButton(categories).add_to(m1) 
 
-        df7=data.groupby(['ZC from']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum'  })
-        df7=df7.rename(columns={'PW DSV' : 'Number of shipments'})
-        df7=df7.sort_values(by="Number of shipments",ascending= False )
-        df7=df7.head(10)
-        df7=df7.sort_values(by="Number of shipments",ascending= True )
-        df7 = df7.reset_index()
-        fig = px.bar(df7, y='ZC from', x='Number of shipments', 
-        color='Number of shipments', 
-        color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-        orientation='h',
-        hover_data={'kg': True, 'ldm': True})  
-        fig.update_layout(
-        xaxis_title='Shipments',  
-        yaxis_title='',
-        height=300,
-        title="Top 10 collections ZC" )
-        fig.update_coloraxes(showscale=False)
-        st.plotly_chart(fig, height=50)
+        if selected_variable=="Number of shipments":
 
-        df6=data.groupby(['ZC to']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum'  })
-        df6=df6.rename(columns={'PW DSV' : 'Number of shipments'})
-        df6=df6.sort_values(by="Number of shipments",ascending= False )
-        
-        
-        df6=df6.head(10)
-        df6=df6.sort_values(by="Number of shipments",ascending= True )
-        df6 = df6.reset_index()
-        fig = px.bar(df6, y='ZC to', x='Number of shipments', 
-        color='Number of shipments', 
-        color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
-        orientation='h',
-        hover_data={'kg': True, 'ldm': True})  
-        fig.update_layout(
+            df7=data.groupby(['ZC from']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum','m3':'sum'  })
+            df7=df7.rename(columns={'PW DSV' : 'Number of shipments'})
+            df7=df7.sort_values(by="Number of shipments",ascending= False )
+            df7=df7.head(10)
+            df7=df7.sort_values(by="Number of shipments",ascending= True )
+            df7 = df7.reset_index()
+            fig = px.bar(df7, y='ZC from', x='Number of shipments', 
+            color='Number of shipments', 
+            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+            orientation='h',
+            hover_data={'kg': True, 'ldm': True})  
+            fig.update_layout(
             xaxis_title='Shipments',  
             yaxis_title='',
             height=300,
-            title= "Top 10 deliveries ZC")
-        fig.update_coloraxes(showscale=False)
-        
-        st.plotly_chart(fig, use_container_width=True)
+            title="Top 10 collections ZC" )
+            fig.update_coloraxes(showscale=False)
+            st.plotly_chart(fig, height=50)
+
+            df6=data.groupby(['ZC to']).agg({'PW DSV': 'count' ,'kg': 'sum', 'ldm': 'sum','m3':'sum'  })
+            df6=df6.rename(columns={'PW DSV' : 'Number of shipments'})
+            df6=df6.sort_values(by="Number of shipments",ascending= False )
+            
+            
+            df6=df6.head(10)
+            df6=df6.sort_values(by="Number of shipments",ascending= True )
+            df6 = df6.reset_index()
+            fig = px.bar(df6, y='ZC to', x='Number of shipments', 
+            color='Number of shipments', 
+            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+            orientation='h',
+            hover_data={'kg': True, 'ldm': True})  
+            fig.update_layout(
+                xaxis_title='Shipments',  
+                yaxis_title='',
+                height=300,
+                title= "Top 10 deliveries ZC")
+            fig.update_coloraxes(showscale=False)
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+
+            df7=data.dropna(subset=[selected_variable],how='any')
+            df7=df7.groupby(['ZC from']).agg({'PW DSV': 'sum' ,'kg': 'sum', 'ldm': 'sum','m3':'sum'  })
+            df7=df7.sort_values(by=selected_variable,ascending= False )
+            df7=df7.head(10)
+            df7=df7.sort_values(by=selected_variable,ascending= True )
+            df7 = df7.reset_index()
+            fig = px.bar(df7, y='ZC from', x=selected_variable, 
+            color=selected_variable, 
+            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+            orientation='h',
+            hover_data={'kg': True, 'ldm': True})  
+            fig.update_layout(
+            xaxis_title=f'Total {selected_variable}',  
+            yaxis_title='',
+            height=300,
+            title="Top 10 collections ZC" )
+            fig.update_coloraxes(showscale=False)
+            st.plotly_chart(fig, height=50)
+
+
+            df6=data.dropna(subset=[selected_variable],how='any')
+            df6=df6.groupby(['ZC to']).agg({'PW DSV': 'sum' ,'kg': 'sum', 'ldm': 'sum','m3':'sum'  })
+            df6=df6.sort_values(by=selected_variable,ascending= False )
+            df6=df6.head(10)
+            df6=df6.sort_values(by=selected_variable,ascending= True )
+            df6 = df6.reset_index()
+            fig = px.bar(df6, y='ZC to', x=selected_variable, 
+            color=selected_variable, 
+            color_continuous_scale=['#A9BCE2','#5D7AB5','#002664'],
+            orientation='h',
+            hover_data={'kg': True, 'ldm': True})  
+            fig.update_layout(
+                xaxis_title=f'Total {selected_variable}',  
+                yaxis_title='',
+                height=300,
+                title= "Top 10 deliveries ZC")
+            fig.update_coloraxes(showscale=False)
+            
+            st.plotly_chart(fig, use_container_width=True)
         
         
                     
@@ -1645,6 +1688,7 @@ elif st.session_state.selected == "Document":
                         msg = response.choices[0].message.content
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
+                        
 
                     messages_summary = [{"role": "system", "content": f"Answer in {selected_language} I want a summary of this document in one paragraph and then in bullet points i want recommendation of a strategy to win this tender:\n\n{document_text}"}]
                     try:
@@ -1658,6 +1702,7 @@ elif st.session_state.selected == "Document":
                         recommendations = split_response[1].strip() if len(split_response) > 1 else ""
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
+                        
                         
                     st.subheader("Summary")    
                     st.write(summary)
