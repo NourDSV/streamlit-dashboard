@@ -1704,60 +1704,85 @@ elif st.session_state.selected == "Document":
                         st.error(f"An error occurred: {e}")
                         
                         
-                    st.subheader("Summary")    
-                    st.write(summary)
+                    st.subheader("Summary")
+                    if summary:    
+                        st.write(summary)
+                        summary_dataframe = pd.DataFrame({"Summary": [summary]})
+                    else:
+                        st.warning("Unable to create THE summary, please rerun. If error persist check your document")
+                        if st.button("Rerun"):
+                            st.rerun()                       
 
-                    summary_dataframe = pd.DataFrame({"Summary": [summary]})
+                    
 
-                    message = [{"role": "system", "content": f"Answer in {selected_language} As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
+                    messages = [{"role": "system", "content": f"Answer in {selected_language} As an expert in sales and marketing create a PowerPoint to present to the client to win this tender. Each slide should have a clear title and 3 to 5 bullet points for content and cover the needs and requirements available on the document. Keep the language concise and professional, and structure it to engage an audience of transport buyers and logistic managers.\n\n{document_text}"}]
                     try:
                         client = OpenAI(api_key=openai_api_key) 
                         response = client.chat.completions.create(
                             model="gpt-4o-mini",
-                            messages=message)
+                            messages=messages)
                         ppt = response.choices[0].message.content
+                        ppt_dataframe = pd.DataFrame({"PPt Presentation": [ppt]})
                     except Exception as e:
                             st.error(f"An error occurred: {e}")
-                    ppt_dataframe = pd.DataFrame({"PPt Presentation": [ppt]})
+                    
 
 
                     col1,col2=st.columns([2,1.5])
                     with col1:
 
-                        st.subheader("Questions") 
-                        lines = [line[1:] for line in msg.split("\n")[:33]]
-                        structured_data = [line.split(": ", 2) for line in lines if ": " in line]
-                        structured_data=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
-                        if structured_data:
-                            df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
-                            
-                            df1=df.set_index("Question")
-                            st.table(df1)
-                        
-                        try:
-                            excel_name=f'profilor RRF-{df["Answer"][0]}-deadline-{df["Answer"][4]}.xlsx'
-                        except:
-                            excel_name="Profilor RRF.xlsx"
+                        st.subheader("Questions")
+                        if msg: 
+                            lines = [line[1:] for line in msg.split("\n")[:33]]
+                            structured_data = [line.split(": ", 2) for line in lines if ": " in line]
+                            structured_data=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
+
+                            if structured_data:
+                                df = pd.DataFrame(structured_data, columns=["Question", "Answer","Description"])
+                                
+                                df1=df.set_index("Question")
+                                st.table(df1)
+                                try:
+                                    excel_name=f'profilor RRF-{df["Answer"][0]}-deadline-{df["Answer"][4]}.xlsx'
+                                except:
+                                    excel_name="Profilor RRF.xlsx"
+                            else:
+                                st.warning("Unable to create table, please rerun. If error persist check your document")
+                                if st.button("Rerun"):
+                                    st.rerun()
+                        else:
+                            st.warning("Unable to create table, please rerun. If error persist check your document")
+                            if st.button("Rerun"):
+                                st.rerun()
+
+
 
                     with col2:
-                        st.subheader("FSC")  
-                        lines_fuel = [line[1:] for line in msg.split("\n")[33:-1]]
-                        structured_data_fuel = [line.split(": ", 1) for line in lines_fuel if ": " in line]
-                        # structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
-                        if structured_data_fuel:
-                            df_fuel = pd.DataFrame(structured_data_fuel, columns=["Question", "Answer",])
-                            df_fuel1=df_fuel.set_index("Question")
-                            st.table(df_fuel1)
+                        st.subheader("FSC")
+                        if msg:  
+                            lines_fuel = [line[1:] for line in msg.split("\n")[33:-1]]
+                            structured_data_fuel = [line.split(": ", 1) for line in lines_fuel if ": " in line]
 
-                        st.subheader("GO or NoGO") 
-                        lines_go = [line[1:] for line in msg.split("\n")[-1:]]
-                        structured_data_go = [line.split(": ", 2) for line in lines_go if ": " in line]
-                        structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
-                        if structured_data_go:
-                            df_go = pd.DataFrame(structured_data_go, columns=["Question", "Answer","Description"])
-                            df_go1=df_go.set_index("Question")
-                            st.table(df_go1)
 
+
+                            if structured_data_fuel:
+                                df_fuel = pd.DataFrame(structured_data_fuel, columns=["Question", "Answer",])
+                                df_fuel1=df_fuel.set_index("Question")
+                                st.table(df_fuel1)
+
+
+                            st.subheader("GO or NoGO") 
+                            lines_go = [line[1:] for line in msg.split("\n")[-1:]]
+                            structured_data_go = [line.split(": ", 2) for line in lines_go if ": " in line]
+                            structured_data_fuel=[columns if len(columns)==3 else columns + [""]for columns in structured_data]
+                            if structured_data_go:
+                                df_go = pd.DataFrame(structured_data_go, columns=["Question", "Answer","Description"])
+                                df_go1=df_go.set_index("Question")
+                                st.table(df_go1)
+                        else:
+                            st.warning("Unable to create table, please rerun. If error persist check your document")
+                            if st.button("Rerun"):
+                                st.rerun()
                         
 
 
