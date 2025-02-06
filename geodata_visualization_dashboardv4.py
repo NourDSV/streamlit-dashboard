@@ -23,7 +23,6 @@ from openai import OpenAI
 from pptx import Presentation
 from docx import Document
 from streamlit_chat import message
-from thefuzz import process
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -138,7 +137,7 @@ if 'selected' not in st.session_state:
 
 selected_option  = option_menu(
 menu_title=None,
-options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector","Document","Data cleaning"],
+options=["Upload data", "Shipment Summary", "Shipment Profile","Maps","Collection Analysis","Regularity Detector","Document"],
 icons=["bi-cloud-upload", "bi bi-bar-chart-fill", "graph-up","bi bi-globe-europe-africa","bi bi-calendar-event","bi bi-filter","bi bi-chat-dots"],
 menu_icon="cast",
 default_index=0,
@@ -1928,160 +1927,3 @@ elif st.session_state.selected == "Document":
                     st.write(ppt)
                 else:
                     st.info("Upload a document to see the summary")
-
-elif st.session_state.selected =="Data cleaning":
-        openai_api_key = st.text_input("Put your api key in here and press enter")
-
-
-        st.title("Creating the shimpnet file")
-        bidfile = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
-        if bidfile is not None:
-            bid_df = pd.read_excel(bidfile)
-            bid_df.columns = bid_df.columns.str.strip()
-            bd_head=bid_df.head()
-            st.write(bd_head)
-            bd_text= bd_head.to_csv(index=False)
-            st.write(bd_text)
-
-
-
-
-
-
-                                               # checking if there's is ZC in seperate column #
-
-            # request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Check if it contains any columns related to zip codes or postal codes. If such columns exist, create a variable 'column_zc' and set it to True, then rename the column related to the origin/collection zip code to 'origin ZC' and the column related to the delivery/destination zip code to 'destination ZC'. If no zip code-related columns are found, set 'column_zc' to False. Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
-            # client = OpenAI(api_key=openai_api_key) 
-            # response = client.chat.completions.create(
-            #     model="gpt-4o-mini",
-            #     temperature= 0.0,
-            #     messages=request)
-            # code_zc_colum = response.choices[0].message.content
-            # st.code(code_zc_colum, language="python")
-            # code_zc_colum = code_zc_colum.strip("```python").strip("```").strip()
-            # exec(code_zc_colum)  
-    
-            # if column_zc:
-            #     st.write(bid_df) 
-
-
-
-
-
-
-
-                                                 # checking if there's is iso #
-
-            request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Do you see any columns that has the country ISO2 abbreviations (e.g., 'FR', 'DE')? If you do, return iso==True . If no such column is found, return iso=False .Please be very very accurate. Return only what's asked (no explanations) . This is the head of my DataFrame: {bd_text}" }]
-            client = OpenAI(api_key=openai_api_key) 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                temperature= 0.0,
-                messages=request)
-            code_iso = response.choices[0].message.content
-            st.code(code_iso, language="python")
-            code_iso = code_iso.strip("```python").strip("```").strip()
-            exec(code_iso)  
-            st.write(bid_df) 
-
-            if iso==False:
-                iso_data=pd.read_excel("ISO2.xlsx")
-                melted_iso_data = iso_data.melt(id_vars=["ISO2"], value_name="Country").drop(columns=["variable"])
-                
-                def fuzzy_match(value, choices,score=85):
-                    match = process.extractOne(value, choices)  # Returns (matched_value, score, etc.)
-                    if match and match[1>= score]:
-                        return match[0],match[1]  # Extract only the matched value
-                    return None
-                
-                request = [{"role": "system", "content":f"Be very accurate and understand what I'm asking.I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the **origin country** (not destination, not city, not post code). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') and should have a name related to origin, such as 'origin', 'collection', 'depart', or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If you are not at least 95% sure, return a variable 'origine_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
-                client = OpenAI(api_key=openai_api_key) 
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature= 0,
-                    top_p = 0.1,
-                    
-                    messages=request)
-                code_rename_country = response.choices[0].message.content
-                st.code(code_rename_country, language="python")
-                code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                exec(code_rename_country)  
-                st.write(bid_df)
-
-                # request = [{"role": "system", "content":f"I want you to be very very accurate. I have a pandas DataFrame named 'bid_df'. Do you see a column called origin or collection or depart countries? or other name in that sense. (not city or ville.. and not destination or arrivé..) and that it has in it countries names (e.g. France, spain, france...)? If you do, return a code to rename that column to 'origin cntry'and put the percentage of how sure are you of your answer in a variable called 'accurancy'(e.g. accurancy=50).Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
-                # client = OpenAI(api_key=openai_api_key) 
-                # response = client.chat.completions.create(
-                #     model="gpt-4o-mini",
-                #     temperature= 0.0,
-                #     messages=request)
-                # code_rename_country = response.choices[0].message.content
-                # st.code(code_rename_country, language="python")
-                # code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                # exec(code_rename_country)  
-                # st.write(bid_df)
-
-            #     if "origin cntry" in bid_df.columns:
-            #         bid_df["origin cntry"] = bid_df["origin cntry"].str.strip()
-            #         bid_df[["matched_country", "origin_country_match_score"]] = bid_df["origin cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
-            #         bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
-            #         bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
-
-                
-                    
-            #     if "delivery cntry" in bid_df.columns:
-            #         bid_df["delivery cntry"] = bid_df["delivery cntry"].str.strip()
-            #         bid_df[["matched_country", "delivery_country_match_score"]] = bid_df["delivery cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
-            #         bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
-            #         bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
-            #         st.write(bid_df)
-                
-            # if iso==True:
-            #         request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Do you see a column called origin/collection/depart..or somthing in that meaning that has in it  **ISO2** country code (e.g. FR , DE, ES...)? If you do then write a code to rename it to 'iso_origin' else return nothing. Do you see a column called destination/delivery.. or anything in that meaning and that has in it the iso2 countries code (e.g. FR , DE, ES...) ? if yes write a python script to rename it to 'iso_delivery' else return nothing. Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
-            #         client = OpenAI(api_key=openai_api_key) 
-            #         response = client.chat.completions.create(
-            #             model="gpt-4o-mini",
-            #             temperature= 0.0,
-            #             messages=request)
-            #         code_rename_country = response.choices[0].message.content
-            #         st.code(code_rename_country, language="python")
-            #         code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-            #         exec(code_rename_country)  
-            #         st.write(bid_df)
-
-
-
-                
-                
-
-
-
-
-
-
-
-
-
-
-
-            # request = [{"role": "system", "content":f"I'll give you the head of a panads dataframe called bid_df, i want you to write me only a python code (i'll excute it directly so just return a code) that create in the same dataframe a new column called 'ZC from' that takes the origin country code (2 letters) and the first two digit of the origin zip or post code. and the same for a column called 'ZC to' (for the destination).here's an example: FR 92 ( keep in mind the df is not clean may have missing value or not str or not integer or numbers and letters at the same time .. Avoid any possible error) . This is my dataframe: {bd_text} " }]
-            # try:
-            #     client = OpenAI(api_key=openai_api_key) 
-            #     response = client.chat.completions.create(
-            #         model="gpt-4o-mini",
-            #         messages=request)
-            #     code = response.choices[0].message.content
-            # except Exception as e:
-            #     st.error(f"An error occurred: {e}")
-
-            # code = code.strip("```python").strip("```").strip()
-
-            # st.write("Code after cleaning:")
-            # st.code(code, language="python")
-
-            # exec(code)  
-            # st.write(bid_df)  
-
-
-
-
-
