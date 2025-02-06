@@ -25,7 +25,6 @@ from docx import Document
 from streamlit_chat import message
 from thefuzz import process
 
-
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
 levl1=gpd.read_file("NUTS_1_Q1.geojson")
@@ -2008,6 +2007,7 @@ elif st.session_state.selected =="Data cleaning":
                 code_rename_country = code_rename_country.strip("```python").strip("```").strip()
                 exec(code_rename_country)  
                 st.write(bid_df)
+                st.write("")
 
                 # request = [{"role": "system", "content":f"I want you to be very very accurate. I have a pandas DataFrame named 'bid_df'. Do you see a column called origin or collection or depart countries? or other name in that sense. (not city or ville.. and not destination or arrivé..) and that it has in it countries names (e.g. France, spain, france...)? If you do, return a code to rename that column to 'origin cntry'and put the percentage of how sure are you of your answer in a variable called 'accurancy'(e.g. accurancy=50).Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
                 # client = OpenAI(api_key=openai_api_key) 
