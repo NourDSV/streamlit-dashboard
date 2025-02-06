@@ -1970,7 +1970,7 @@ elif st.session_state.selected =="Data cleaning":
 
 
 
-                                                 # checking if there's is iso #
+                                                                                     # checking if there's is iso #
 
             request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Do you see any columns that has the country ISO2 abbreviations (e.g., 'FR', 'DE')? If you do, return iso==True . If no such column is found, return iso=False .Please be very very accurate. Return only what's asked (no explanations) . This is the head of my DataFrame: {bd_text}" }]
             client = OpenAI(api_key=openai_api_key) 
@@ -1984,60 +1984,63 @@ elif st.session_state.selected =="Data cleaning":
             exec(code_iso)  
             st.write(bid_df) 
 
+
+                                                                                       ##### checking if column for origin country exist###
+            request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the **origin country** (not destination, not city, not post code, not country code). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') and should have a name related to origin, such as 'origin', 'collection', 'depart','chargement', 'country from', 'shipping country','consignor' or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If so, return a Python script to rename that column to 'origin_cntry'. Else, return a variable 'origin_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
+            client = OpenAI(api_key=openai_api_key) 
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature= 0,
+                top_p = 0.1,
+                messages=request)
+            code_rename_country = response.choices[0].message.content
+            st.code(code_rename_country, language="python")
+            code_rename_country = code_rename_country.strip("```python").strip("```").strip()
+            exec(code_rename_country)  
+            st.write(bid_df)
+                                                                                ##### checking if column for destination country exist###
+            request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the **destination country** (not origin, not city, not post code). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') and should have a name related to destination, such as 'destination', 'arrivée', 'country to','livraison','consignee', 'delivery' or another similar name that strongly indicates the **destination country**. You must be at least 95% certain that the column represents the destination country and not the origin.If so, return a Python script to rename that column to 'destination_cntry'. Else, return a variable 'destination_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
+            client = OpenAI(api_key=openai_api_key) 
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature= 0,
+                top_p = 0.1,
+                messages=request)
+            code_rename_country = response.choices[0].message.content
+            st.code(code_rename_country, language="python")
+            code_rename_country = code_rename_country.strip("```python").strip("```").strip()
+            exec(code_rename_country)  
+            st.write(bid_df)
+
+
             if iso==False:
                 iso_data=pd.read_excel("ISO2.xlsx")
                 melted_iso_data = iso_data.melt(id_vars=["ISO2"], value_name="Country").drop(columns=["variable"])
-                
-                def fuzzy_match(value, choices,score=85):
+                melted_iso_data = melted_iso_data.drop_duplicates(subset=["Country"])
+                def fuzzy_match(value, choices,score=78):
                     match = process.extractOne(value, choices)  # Returns (matched_value, score, etc.)
                     if match and match[1>= score]:
                         return match[0],match[1]  # Extract only the matched value
                     return None
-                
-                request = [{"role": "system", "content":f"Be very accurate and understand what I'm asking.I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the **origin country** (not destination, not city, not post code). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') and should have a name related to origin, such as 'origin', 'collection', 'depart', or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If you are not at least 95% sure, return a variable 'origine_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
-                client = OpenAI(api_key=openai_api_key) 
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature= 0,
-                    top_p = 0.1,
-                    
-                    messages=request)
-                code_rename_country = response.choices[0].message.content
-                st.code(code_rename_country, language="python")
-                code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                exec(code_rename_country)  
-                st.write(bid_df)
-                st.write("")
 
-                # request = [{"role": "system", "content":f"I want you to be very very accurate. I have a pandas DataFrame named 'bid_df'. Do you see a column called origin or collection or depart countries? or other name in that sense. (not city or ville.. and not destination or arrivé..) and that it has in it countries names (e.g. France, spain, france...)? If you do, return a code to rename that column to 'origin cntry'and put the percentage of how sure are you of your answer in a variable called 'accurancy'(e.g. accurancy=50).Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
-                # client = OpenAI(api_key=openai_api_key) 
-                # response = client.chat.completions.create(
-                #     model="gpt-4o-mini",
-                #     temperature= 0.0,
-                #     messages=request)
-                # code_rename_country = response.choices[0].message.content
-                # st.code(code_rename_country, language="python")
-                # code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                # exec(code_rename_country)  
-                # st.write(bid_df)
-
-            #     if "origin cntry" in bid_df.columns:
-            #         bid_df["origin cntry"] = bid_df["origin cntry"].str.strip()
-            #         bid_df[["matched_country", "origin_country_match_score"]] = bid_df["origin cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
-            #         bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
-            #         bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
+                if "origin_cntry" in bid_df.columns:
+                    bid_df[["matched_country", "origin_country_match_score"]] = bid_df["origin_cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
+                    bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
+                    bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
+                    st.write(bid_df)
 
                 
                     
-            #     if "delivery cntry" in bid_df.columns:
-            #         bid_df["delivery cntry"] = bid_df["delivery cntry"].str.strip()
-            #         bid_df[["matched_country", "delivery_country_match_score"]] = bid_df["delivery cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
-            #         bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
-            #         bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
-            #         st.write(bid_df)
+                if "destination_cntry" in bid_df.columns:
+                    bid_df[["matched_country", "delivery_country_match_score"]] = bid_df["destination_cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
+                    bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
+                    bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
+                    st.write(bid_df)
+
+
                 
             # if iso==True:
-            #         request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Do you see a column called origin/collection/depart..or somthing in that meaning that has in it  **ISO2** country code (e.g. FR , DE, ES...)? If you do then write a code to rename it to 'iso_origin' else return nothing. Do you see a column called destination/delivery.. or anything in that meaning and that has in it the iso2 countries code (e.g. FR , DE, ES...) ? if yes write a python script to rename it to 'iso_delivery' else return nothing. Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
+            #         request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the  **ISO2** country code (e.g. FR , DE, ES...) for origin county( do not confuse with iso country code of the destination country).The column should contain **country  iso2 code** (e.g., 'FR', 'ES', 'DE') and should have a name related to origin, such as 'origin', 'collection', 'depart','chargement', 'country from', 'shipping country','consignor' or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If so, return a Python script to rename that column to 'origin_cntry'. Else, return a variable 'origin_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
             #         client = OpenAI(api_key=openai_api_key) 
             #         response = client.chat.completions.create(
             #             model="gpt-4o-mini",
