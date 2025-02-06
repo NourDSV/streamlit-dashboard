@@ -15,4 +15,8 @@ tiktoken
 python-pptx
 python-docx
 streamlit-chat
+<<<<<<< HEAD
 thefuzz
+=======
+thefuzz
+>>>>>>> 1620ecf14ec26462c199e9cb6ba8c246da7f31b7

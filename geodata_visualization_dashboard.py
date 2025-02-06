@@ -25,6 +25,7 @@ from docx import Document
 from streamlit_chat import message
 from thefuzz import process
 
+
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
 levl1=gpd.read_file("NUTS_1_Q1.geojson")
