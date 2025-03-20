@@ -23,9 +23,7 @@ from openai import OpenAI
 from pptx import Presentation
 from docx import Document
 from streamlit_chat import message
-from thefuzz import process, fuzz
-import re
-# from rapidfuzz import process, fuzz
+from thefuzz import process
 
 levl0=gpd.read_file("europe.geojson")
 levl2=gpd.read_file("NUTS_2_Q2.geojson")
@@ -1933,497 +1931,116 @@ elif st.session_state.selected == "Document":
 
 elif st.session_state.selected =="Data cleaning":
         openai_api_key = st.text_input("Put your api key in here and press enter")
-        iso_data=pd.read_excel("ISO2.xlsx")
+
+
         st.title("Creating the shimpnet file")
         bidfile = st.file_uploader("Upload an Excel file", type=["xlsx", "xls"])
         if bidfile is not None:
             bid_df = pd.read_excel(bidfile)
-            bid_df = bid_df.fillna('').astype(str)
-            bid_df = bid_df.applymap(lambda x: x.split('.')[0] if x.replace('.', '', 1).isdigit() else x)
-            bid_df = bid_df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
             bid_df.columns = bid_df.columns.str.strip()
-            bid_df = bid_df[~(bid_df == '').all(axis=1)]
             bd_head=bid_df.head()
             st.write(bd_head)
             bd_text= bd_head.to_csv(index=False)
-            # st.write(bd_text)
+            st.write(bd_text)
 
 
 
 
 
 
-                                                                                    ###### go no go #####
+                                               # checking if there's is ZC in seperate column #
 
-            request = [{"role": "system", "content":f"I already have a pandas dataframe that's supposed to be for logistic services.Carefully analyse the column names and their corresponding data and tell me is it possible with this information to create a column that has the country name/code and a zip code? if so, answer True else answer False.  Don't return any other explanations. This is the csv head of my DataFrame: {bd_text}" }]
+            # request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Check if it contains any columns related to zip codes or postal codes. If such columns exist, create a variable 'column_zc' and set it to True, then rename the column related to the origin/collection zip code to 'origin ZC' and the column related to the delivery/destination zip code to 'destination ZC'. If no zip code-related columns are found, set 'column_zc' to False. Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
+            # client = OpenAI(api_key=openai_api_key) 
+            # response = client.chat.completions.create(
+            #     model="gpt-4o-mini",
+            #     temperature= 0.0,
+            #     messages=request)
+            # code_zc_colum = response.choices[0].message.content
+            # st.code(code_zc_colum, language="python")
+            # code_zc_colum = code_zc_colum.strip("```python").strip("```").strip()
+            # exec(code_zc_colum)  
+    
+            # if column_zc:
+            #     st.write(bid_df) 
+
+
+
+
+
+
+
+                                                                                     # checking if there's is iso #
+
+            request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Do you see any columns that has the country ISO2 abbreviations (e.g., 'FR', 'DE')? If you do, return iso==True . If no such column is found, return iso=False .Please be very very accurate. Return only what's asked (no explanations) . This is the head of my DataFrame: {bd_text}" }]
+            client = OpenAI(api_key=openai_api_key) 
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature= 0.0,
+                messages=request)
+            code_iso = response.choices[0].message.content
+            st.code(code_iso, language="python")
+            code_iso = code_iso.strip("```python").strip("```").strip()
+            exec(code_iso)  
+            st.write(bid_df) 
+
+
+                                                                                       ##### checking if column for origin country exist###
+            request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the **origin country** (not destination, not city, not post code, not country code). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') and should have a name related to origin, such as 'origin', 'collection', 'depart','chargement', 'country from', 'shipping country','consignor'..... or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If so, return a Python script to rename that column to 'origin_cntry'. Else, return a variable 'origin_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
             client = OpenAI(api_key=openai_api_key) 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 temperature= 0,
                 top_p = 0.1,
                 messages=request)
-            yes_no = response.choices[0].message.content
-            st.code(yes_no, language="python")
-            yes_no = yes_no.strip("```python").strip("```").strip()
-            if yes_no=="True": 
+            code_rename_country = response.choices[0].message.content
+            st.code(code_rename_country, language="python")
+            code_rename_country = code_rename_country.strip("```python").strip("```").strip()
+            exec(code_rename_country)  
+            st.write(bid_df)
+                                                                                ##### checking if column for destination country exist###
+            request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the **destination country** (not origin, not city, not post code). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') and should have a name related to destination, such as 'destination', 'arrivée', 'country to','livraison','consignee'...., 'delivery' or another similar name that strongly indicates the **destination country**. You must be at least 95% certain that the column represents the destination country and not the origin.If so, return a Python script to rename that column to 'destination_cntry'. Else, return a variable 'destination_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
+            client = OpenAI(api_key=openai_api_key) 
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature= 0,
+                top_p = 0.1,
+                messages=request)
+            code_rename_country = response.choices[0].message.content
+            st.code(code_rename_country, language="python")
+            code_rename_country = code_rename_country.strip("```python").strip("```").strip()
+            exec(code_rename_country)  
+            st.write(bid_df)
 
 
-                request = [{"role": "system", "content":f"I already have a pandas DataFrame for logistic services named 'bid_df'.Carefully analyse the column names and their corresponding data and write me a code that keeps only the columns that can indicate country name (or country code) and columns that can indicate postal or zip code.Any columns that has any of these information keep it and put in a new dataframe that you create and call it 'df'. Return only the python script (no explanations) . This is the csv head of my DataFrame: {bd_text}" }]
-                client = OpenAI(api_key=openai_api_key) 
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature= 0.0,
-                    messages=request)
-                code_iso = response.choices[0].message.content
-                st.code(code_iso, language="python")
-                code_iso = code_iso.strip("```python").strip("```").strip()
-                exec(code_iso)  
-                st.write(df)
-                df_head=df.head()
-                bd_text= df_head.to_csv(index=False) 
+            if iso==False:
+                iso_data=pd.read_excel("ISO2.xlsx")
+                melted_iso_data = iso_data.melt(id_vars=["ISO2"], value_name="Country").drop(columns=["variable"])
+                melted_iso_data = melted_iso_data.drop_duplicates(subset=["Country"])
+                def fuzzy_match(value, choices,score=78):
+                    match = process.extractOne(value, choices)  # Returns (matched_value, score, etc.)
+                    if match and match[1>= score]:
+                        return match[0],match[1]  # Extract only the matched value
+                    return None
 
-                                                                            ##### confirming we can have zc from and zc to ###
-                request = [{"role": "system", "content":f"I have a pandas DataFrame named 'df'.It's for logistic services. Carefully analyze the column names and their corresponding data and tell me is it possible with that data to create a column for the origin that has the country name or code and the zip/postal code( whether the copmlete or just first 2 digits), and an other column for the destination (same with the country and the zipcode). If the answer is yes( we can have both columns) return 'True'. Else return 'False'  return only True or False (no explanations). These are the first rows of my DataFrame: {bd_text}" }]
-                client = OpenAI(api_key=openai_api_key) 
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    temperature= 0,
-                    top_p = 0.1,
-                    messages=request)
-                confirm = response.choices[0].message.content
-                st.code(confirm, language="python")
-                confirm = confirm.strip("```python").strip("```").strip()
-                if confirm=="True":
+                if "origin_cntry" in bid_df.columns:
+                    bid_df[["matched_country", "origin_country_match_score"]] = bid_df["origin_cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
+                    bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
+                    bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
+                    st.write(bid_df)
 
                 
                     
-                    origin_country_existing=True                                              ###################### origin_country creation ##############                                                                     
-                    request = [{"role": "system", "content":f"I already have a pandas DataFrame for logistic services named 'df'. Carefully analyze the column names and their corresponding data to determine if there is a column that can indicate the **origin country** (not destination, not city). The column MUST contain **country name** (e.g., 'France', 'Spain', 'Germany') or ISO country code (e.g. 'FR', 'DE') and should have a name related to origin, such as 'origin', 'collection', 'depart','chargement', 'country from', 'shipping country','consignor', ... or any another similar name that strongly indicates the origin . ( I repeat for you : the column should has a name that indicate origin and MUST contain countries names/codes as values) don't confuse it with the destination column. If it exist, return a Python script to rename that column to 'origin_cntry'. Else, return a variable 'origin_country_existing'=False. If you're not 100% sure also return 'origin_country_existing'=False .Do not guess or assume.Do not check for the existence of the columns in the code, just return the renaming code directly and only the Python code (no explanations). These are the first rows of my DataFrame: {bd_text}" }]
-                    client = OpenAI(api_key=openai_api_key) 
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        temperature= 0,
-                        top_p = 0.1,
-                        messages=request)
-                    code_rename_country = response.choices[0].message.content
-                    st.code(code_rename_country, language="python")
-                    code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                    exec(code_rename_country)  
-                    # st.write(df)
-                    bd_text = df.head().to_csv(index=False)
-
-                    
-                    if origin_country_existing ==False:
-                        origin_cntry_column=st.selectbox("Please select which column indicates the origin country", df.columns)
-                        df=df.rename(columns={"origin_cntry_column":"origin_cntry"})
-
-
-
-
-
-                                                              ############## creating origine Zip code ################
-                                                                               
-                    request = [{"role": "system", "content":f"I already have a pandas DataFrame for logistic services named 'df'. Carefully analyze the column names and their corresponding data and search for a column that indicate the **origin zip/post code** (not destination zipcode). The column should contain **zip codes** (e.g., '77', '92673', '08') and should have a name related to origin , such as 'origin zipcode', 'collection zipcode', 'depart zipcode','chargement zipcode', 'zipcode from', 'shipping zipcode','consignor zipcode' or another similar name that strongly indicates the **origin zipcode**. You must be certain that the column represents the origin and not the destination and that it has the *zipcode*.If you find it, return a Python script to rename that column to 'origin_zipcode'. Else, return a variable 'zipcode_origin_existing'=False. Do not guess or assume.Do not check for the existence of the columns in the code, just return the renaming code directly only the Python code (no explanations). These are the first rows of my DataFrame: {bd_text}" }]
-                    client = OpenAI(api_key=openai_api_key) 
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        temperature= 0,
-                        top_p = 0.1,
-                        messages=request)
-                    code_rename_country = response.choices[0].message.content
-                    st.code(code_rename_country, language="python")
-                    code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                    exec(code_rename_country)  
-                    # st.write(df)
-                    bd_text = df.head().to_csv(index=False)
-
-                    if 'zipcode_origin_existing'==False:
-                        zip_origin_cntry_column=st.selectbox("Please select which column indicates the origin zip code", df.columns)
-                        df=df.rename(columns={"zip_origin_cntry_column":"origin_zipcode"})
-
-
-
-
-
-
-
-
-                                                                                        ######## creating column destination_cntry #######
-
-
-                    request = [{"role": "system", "content":f"I already have a pandas DataFrame for logistic services named 'df'. Carefully analyze the column names and their corresponding data and search for a column that indicate the **destination country** (not origin, not city). The column should contain **country names** (e.g., 'France', 'Spain', 'Germany') or country code (e.g. 'FR', 'DE') and should have a name related to destination, such as 'destination', 'arrivée', 'country to','livraison','consignee', 'delivery', 'To'.. or any other similar name that strongly indicates the **destination country**. You must be certain that the column represents the destination (and not the origin) and that it has **countries** names indication.If so, return a Python script to rename that column to 'destination_cntry'. Else, return a variable 'destination_country_existing'=False. Do not guess or assume.Do not check for the existence of the columns in the code, just return the renaming code directly and only the Python code (no explanations). This is the csv head of my DataFrame: {bd_text}" }]
-                    client = OpenAI(api_key=openai_api_key) 
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        temperature= 0,
-                        top_p = 0.1,
-                        messages=request)
-                    code_rename_country = response.choices[0].message.content
-                    st.code(code_rename_country, language="python")
-                    code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                    exec(code_rename_country)  
-                    # st.write(df)
-                    bd_text = df.head().to_csv(index=False)
-
-                    if 'destination_country_existing'==False:
-                        origin_cntry_column=st.selectbox("Please select which column indicates the destination country", df.columns)
-                        df=df.rename(columns={"destination_cntry_column":"destination_cntry"})
-
-
-
-                                                                     
-                                                                                          ############## creating destination Zip code ################
-                    request = [{"role": "system", "content":f"I already have a pandas DataFrame for logistic services named 'df'. Carefully analyze the column names and their corresponding data and search for a column that indicate the **destination zip/post code** (not origin zipcode). The column should contain **zip codes** (e.g., '77', '92673', '08') and should have a name related to destination, such as 'destination zipcode', 'arrivée zipcode', 'country to zipcode','livraison zipcode', 'zipcode to', 'consignee zipcode','delivery zipcode', ... or any other similar name that strongly indicates the **destination zipcode**. You must be certain that the column represents the destination and not the origin and that it has a *zipcode*.If you find it, return a Python script to rename that column to 'destination_zipcode'. Else, return a variable 'zipcode_destination_existing'=False. Do not guess or assume.Do not check for the existence of the columns in the code, just return the renaming code directly and only the Python code (no explanations). These are the first rows of my DataFrame: {bd_text}" }]
-                    client = OpenAI(api_key=openai_api_key) 
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        temperature= 0,
-                        top_p = 0.1,
-                        messages=request)
-                    code_rename_country = response.choices[0].message.content
-                    st.code(code_rename_country, language="python")
-                    code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                    exec(code_rename_country)  
-                    # st.write(df)
-                    bd_text = df.head().to_csv(index=False)
-
-                    if 'zipcode_destination_existing'==False:
-                        zip_origin_cntry_column=st.selectbox("Please select which column indicates the destination zip code", df.columns)
-                        df=df.rename(columns={"zip_destination_cntry_column":"destination_zipcode"})
-
-
-
-                    
-                                                         ################  fuzzy match for iso  ####################
-
-                    melted_iso_data = iso_data.melt(id_vars=["ISO2"],value_vars=["Country 1", "Country 2", "Country 3", "Country4"], value_name="Country").drop(columns=["variable"])
-                    melted_iso_data = melted_iso_data.drop_duplicates(subset=["Country"])
-
-                    
-                    def fuzzy_match(value, melted_iso_data):
-                        value= value.lower()
-                        choices =melted_iso_data["Country"].astype(str).tolist()
-                        match = process.extractOne(value, choices )  # Get the best match (single tuple)
-                        if match:
-                            best_match, score= match
-                            iso2_value = melted_iso_data.loc[melted_iso_data["Country"] == best_match, "ISO2"].values
-                            iso2_value = iso2_value[0] if len(iso2_value) > 0 else None
-                            
-                            return best_match, score , iso2_value  # Correctly return (matched_value, score)
-
-                        return "", 0, None 
-
-                    if "origin_cntry" in df.columns:
-                        df[["matched_origin_country", "origin_country_match_score", "ISO2_matched"]] = df["origin_cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data))if pd.notna(x) and x != '' else pd.Series([None, None,None]))
-                        df=df.drop(columns=["Country","matched_origin_country"]).rename(columns={"ISO2_matched": "iso_origin"})
-                        # st.write(df)
-
-                        
-                    if "destination_cntry"  in df.columns:
-                        df[["matched_destination_country", "destination_country_match_score", "ISO2_matched"]] = df["destination_cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data))if pd.notna(x) and x != '' else pd.Series([None, None, None]))
-                        df=df.drop(columns=["matched_destination_country"]).rename(columns={"ISO2_matched": "iso_destination"})
-                        st.write(df)
-
-                    bd_text = df.head().to_csv(index=False)
-
-                    # all_exist_origin = df['iso_origin'].isin(iso_data['ISO2']).all()
-                    # all_exist_destination = df['iso_destination'].isin(iso_data['ISO2']).all()
-                    # all_exist = all_exist_origin and all_exist_destination
-                    # if not all_exist:
-                    #     missing_values = df[~df['iso_origin'].isin(iso_data['ISO2']) | ~df['iso_destination'].isin(iso_data['ISO2'])]
-                    #     st.write("missing values :")
-                    #     st.write(missing_values)
-
-                    
-                                                            ####### extracting the zip code ########
-
-                    df_reference=pd.read_excel("ML_data1.xlsx")
-                    zipcodes=pd.read_excel("zipcodes.xlsx")
-                    
-                    if "destination_zipcode" and "iso_destination" in df.columns:
-                        def clean_zipcode(zipcode, country):
-                            if pd.isna(zipcode):  # Handle missing values
-                                return None
-                            zipcode = str(zipcode)
-                            if country in ["GB", "IE"]:  
-                            # 🔹 Keep only letters and numbers (remove special characters but allow alphanumeric)
-                                cleaned_zip = re.sub(r"[^A-Za-z0-9]", "", zipcode)
-                            else:
-                                # 🔹 Keep only numbers (remove all non-numeric characters)
-                                cleaned_zip = re.sub(r"\D", "", zipcode)  # \D = any non-digit
-
-                            return cleaned_zip
-
-                        df["destination_zip"] = df.apply(lambda row: clean_zipcode(row["destination_zipcode"], row["iso_destination"]), axis=1)
-                        df["zc to"] = df.apply(lambda row: f"{row['iso_destination']} {row['destination_zip']}" 
-                        if pd.notna(row['iso_destination']) and row['iso_destination'] != '' 
-                        and pd.notna(row['destination_zip']) and row['destination_zip'] != '' 
-                        else None, 
-                        axis=1)
-
-                        
-
-                    
-                        def fuzzy_match_zip(row, reference_df):
-                            country = row['iso_destination']
-                            zip_code = str(row['zc to'])
-                            ref_filtered = reference_df[reference_df['country'] == country]
-
-                            if ref_filtered.empty:
-                                return None, None
-                            
-                            # Perform fuzzy matching on zip codes
-                            choices = ref_filtered['full_zc'].astype(str).tolist()
-                            best_match, score = process.extractOne(zip_code, choices)
-
-                            zc_value = ref_filtered.loc[ref_filtered['full_zc'] == best_match, 'ZC'].values
-                            zc_value = zc_value[0] if len(zc_value) > 0 else None
-
-                            return best_match, score ,zc_value
-
-                        df[['matched_destination_zip', 'score_destination','ZC to']] = df.apply(
-                            lambda row: pd.Series(fuzzy_match_zip(row, df_reference))if pd.notna(row['zc to']) and row['zc to'] != '' else pd.Series([None, None, None]), axis=1
-                        )
-
-
-                    if "origin_zipcode" and "iso_origin" in df.columns:
-
-                        df["origin_zip"] = df.apply(lambda row: clean_zipcode(row["origin_zipcode"], row["iso_origin"]), axis=1)
-
-                        df["zc from"] = df.apply(lambda row: f"{row['iso_origin']} {row['origin_zip']}" 
-                            if pd.notna(row['iso_origin']) and row['iso_origin'] != '' 
-                            and pd.notna(row['origin_zip']) and row['origin_zip'] != '' 
-                            else None, 
-                            axis=1)
-                        
-
-                        def fuzzy_match_zip(row, reference_df):
-                            country = row['iso_origin']
-                            zip_code = str(row['zc from'])
-                            ref_filtered = reference_df[reference_df['country'] == country]
-
-                            if ref_filtered.empty:
-                                return None, None, None
-                            
-                            # Perform fuzzy matching on zip codes
-                            choices = ref_filtered['full_zc'].astype(str).tolist()
-                            best_match, score = process.extractOne(zip_code, choices)
-
-                            zc_value = ref_filtered.loc[ref_filtered['full_zc'] == best_match, 'ZC'].values
-                            zc_value = zc_value[0] if len(zc_value) > 0 else None
-
-                            return best_match, score, zc_value
-
-                        df[['matched_origin_zip', 'score_origin', 'ZC from']] = df.apply(
-                            lambda row: pd.Series(fuzzy_match_zip(row, df_reference))if pd.notna(row['zc from']) and row['zc from'] != '' 
-    else pd.Series([None, None, None]), axis=1
-                        )
-
-                    columns_to_sum = [
-                        'score_origin', 
-                        'score_destination', 
-                        'delivery_country_match_score', 
-                        'origin_country_match_score'
-                    ]
-
-                    # Filtrer les colonnes qui existent dans le DataFrame
-                    existing_columns = [col for col in columns_to_sum if col in df.columns]
-
-                    # Créer la colonne "score" comme somme des colonnes existantes
-                    df['score'] = df[existing_columns].sum(axis=1)
-
-                    score_min = df['score'].min()
-                    score_max = df['score'].max()
-
-                    # Attention à éviter la division par zéro si min = max
-                    if score_min == score_max:
-                        df['score'] = 1  # ou 1, selon la logique
-                    else:
-                        df['score'] = 0.1 + 0.9 * (df['score'] - score_min) / (score_max - score_min)
-
-                    # Optionnel : arrondir à 2 décimales
-                    df['score'] = df['score'].round(2)
-
-                    df["à verifier"] = df["score"].apply(lambda x: "non" if x > 0.9 else "oui")
-
-
-
-
-
-
-
-
-                    # country_lengths = {
-                    #     "AL": 4, "AT": 4, "BA": 5, "BE": 4, "BG": 4, "CH": 4, "CZ": 5,
-                    #     "DE": 5, "DK": 4, "EE": 5, "ES": 5, "FI": 5, "FR": 5, "GR": 5,
-                    #     "HR": 5, "HU": 4, "IT": 5, "LT": 5, "LU": 4, "LV": 5, "ME": 5,
-                    #     "MK": 4, "NL": 4, "NO": 4, "PL": 5, "PT": 7, "RO": 6, "RS": 5,
-                    #     "SE": 5, "SI": 4, "SK": 5, "TR": 5, "XK": 5
-                    # }
-
-                   
-
-                  
-                    # def pad_postal_code(country, postal_code):
-                    #     code = str(postal_code)
-                    #     length = country_lengths.get(country, len(code))  # Default to current length if country not found
-                    #     if len(code) == 2:  # If the postal code is already 2 digits, keep it as is
-                    #         return code
-                    #     return code.zfill(length)
-
-                    
-                    # # df['standardized_origin_postal_code'] = df.apply(lambda row: pad_postal_code(row['origin_country'], row['origin_postal_code']), axis=1)
-                    # df['standardized_destination_postal_code'] = df.apply(lambda row: pad_postal_code(row['destination_cntry'], row['destination_zip']), axis=1)
-
-
-                    st.write(df)
-
-
-
-
-
-
-                    
-                                                        ###################### creating the column zc from and zc to #######################
-                    # request = [{"role": "system", "content":f"I already have a pandas DataFrame for logistic services named 'df'. Use the column 'iso_origin' and/or 'origin_zipcode' to create a new column named 'zc from' that has the country iso and the zip code(e.g. how I want the result: 'FR 92' or 'DE 85473' .... ). and do the same for a column you'll name 'zc to' using the column 'iso_destination' and/or destination_zipcode. just return the code directly and only the Python code (no explanations). These are the first rows of my DataFrame: {bd_text}" }]
-                    # client = OpenAI(api_key=openai_api_key) 
-                    # response = client.chat.completions.create(
-                    #     model="gpt-4o-mini",
-                    #     temperature= 0,
-                    #     top_p = 0.1,
-                    #     messages=request)
-                    # code_rename_country = response.choices[0].message.content
-                    # st.code(code_rename_country, language="python")
-                    # code_rename_country = code_rename_country.strip("```python").strip("```").strip()
-                    # exec(code_rename_country)  
-                    # st.write(df)
-                    # bd_text = df.head().to_csv(index=False)
-
-                                                      ############### fuzzy match for the zc from and zc to ####################
-                    
-                    
-                    
-
-                    # def rapid_fuzzy_match(value, choices):
-                    #     sorted_choices = sorted(choices, key=len, reverse=True)
-
-                    #     for choice in sorted_choices:
-                    #         if value.startswith(choice):
-                    #             return choice, 100  # Assume a perfect match for prefix matching
-
-                    #     # Step 3: Use fuzzy matching as a fallback if no prefix match is found
-                    #     match = process.extractOne(value, choices, scorer=fuzz.ratio)
-                    #     if match:
-                    #         return match[0], match[1]  # Return best fuzzy match
-
-                    #     return "", 0
-                    
-                    # if "zc from" in df.columns:
-                    #     df[["matched_zc_from", "zc_from_match_score"]] = df["zc from"].apply(lambda x: pd.Series(rapid_fuzzy_match(x, zipcodes["ZC"])))
-                    #     df = df.merge(zipcodes, left_on="matched_zc_from", right_on="ZC", how="left")
-                    #     df=df.rename(columns={"ZC":"ZC from"})
-                    
-
-                    # if "zc to" in df.columns:
-                        
-                    #     df[["matched_zc_to", "zc_to_match_score"]] = df["zc to"].apply(lambda x: pd.Series(rapid_fuzzy_match(x, zipcodes["ZC"])))
-                    #     df = df.merge(zipcodes, left_on="matched_zc_to", right_on="ZC", how="left")
-                    #     df = df.rename(columns={"ZC": "ZC to"})
-                    #     st.write(df)
-
-
-                    # from sentence_transformers import SentenceTransformer, util
-                    # import pandas as pd
-                    # import torch
-                    # from rapidfuzz import process, fuzz
-
-                    # # ✅ Load the BERT model once, globally
-                    # model = SentenceTransformer('all-MiniLM-L6-v2')  # Fast and accurate
-
-                    # def hybrid_fuzzy_match(value, choices, threshold=70):
-                    #     """
-                    #     Hybrid matching approach:
-                    #     1. Uses RapidFuzz for quick fuzzy matching.
-                    #     2. If the best fuzzy match score is below `threshold`, fall back to BERT.
-                    #     """
-                    #     # Step 1: Sort choices by length in descending order to prioritize longer prefixes
-                    #     sorted_choices = sorted(choices, key=len, reverse=True)
-
-                    #     # Step 2: Check for prefix match first
-                    #     for choice in sorted_choices:
-                    #         if value.startswith(choice):
-                    #             return choice, 100  # Assume a perfect match for prefix matching
-
-                    #     # Step 3: Use fuzzy matching first
-                    #     match = process.extractOne(value, choices, scorer=fuzz.ratio)
-                    #     if match and match[1] >= threshold:  # If score is above the threshold, return it
-                    #         return match[0], match[1]
-
-                    #     # Step 4: If fuzzy score is too low, use BERT-based semantic similarity
-                    #     embeddings_value = model.encode([value], convert_to_tensor=True)
-                    #     embeddings_choices = model.encode(choices, convert_to_tensor=True)
-
-                    #     similarities = util.pytorch_cos_sim(embeddings_value, embeddings_choices)
-                    #     best_match_idx = torch.argmax(similarities).item()
-                    #     best_match_score = similarities[0][best_match_idx].item() * 100  # Convert to percentage
-
-                    #     return choices[best_match_idx], round(best_match_score, 2)  # Return best match and score
-
-
-                    # # ✅ Apply Hybrid Fuzzy + BERT Matching on "zc from"
-                    # # df[["matched_zc_from", "zc_from_match_score"]] = df["zc from"].apply(lambda x: pd.Series(hybrid_fuzzy_match(x, zipcodes["ZC"])))
-                    # # df = df.merge(zipcodes, left_on="matched_zc_from", right_on="ZC", how="left")
-
-                    # # ✅ Apply Hybrid Fuzzy + BERT Matching on "zc to"
-                    # df[["matched_zc_to", "zc_to_match_score"]] = df["zc to"].apply(lambda x: pd.Series(hybrid_fuzzy_match(x, zipcodes["ZC"])))
-                    # df = df.merge(zipcodes, left_on="matched_zc_to", right_on="ZC", how="left")
-                    # st.write(df)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                if "destination_cntry" in bid_df.columns:
+                    bid_df[["matched_country", "delivery_country_match_score"]] = bid_df["destination_cntry"].apply(lambda x: pd.Series(fuzzy_match(x, melted_iso_data["Country"])))
+                    bid_df = bid_df.merge(melted_iso_data, left_on="matched_country", right_on="Country", how="left")
+                    bid_df=bid_df.drop(columns=["Country","matched_country"]).rename(columns={"ISO2": "iso_origin"})
+                    st.write(bid_df)
 
 
                 
             # if iso==True:
-            #         request = [{"role": "system", "content":f"I have a pandas DataFrame named 'df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the  **ISO2** country code (e.g. FR , DE, ES...) for origin county( do not confuse with iso country code of the destination country).The column should contain **country  iso2 code** (e.g., 'FR', 'ES', 'DE') and should have a name related to origin, such as 'origin', 'collection', 'depart','chargement', 'country from', 'shipping country','consignor' or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If so, return a Python script to rename that column to 'origin_cntry'. Else, return a variable 'origin_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). These are the first rows of my DataFrame: {bd_text}" }]
+            #         request = [{"role": "system", "content":f"I have a pandas DataFrame named 'bid_df'. Carefully analyze the column names and their corresponding data to determine if there is a column that represents the  **ISO2** country code (e.g. FR , DE, ES...) for origin county( do not confuse with iso country code of the destination country).The column should contain **country  iso2 code** (e.g., 'FR', 'ES', 'DE') and should have a name related to origin, such as 'origin', 'collection', 'depart','chargement', 'country from', 'shipping country','consignor' or another similar name that strongly indicates the **origin country**. You must be at least 95% certain that the column represents the origin country and not the destination.If so, return a Python script to rename that column to 'origin_cntry'. Else, return a variable 'origin_country_existing'=False. Do not guess. Do not assume. Do not include explanations.Do not check for the existence of the columns in the code, just return the renaming code directly Return only the Python code (no explanations). This is the head of my DataFrame: {bd_text}" }]
             #         client = OpenAI(api_key=openai_api_key) 
             #         response = client.chat.completions.create(
             #             model="gpt-4o-mini",
@@ -2433,7 +2050,7 @@ elif st.session_state.selected =="Data cleaning":
             #         st.code(code_rename_country, language="python")
             #         code_rename_country = code_rename_country.strip("```python").strip("```").strip()
             #         exec(code_rename_country)  
-            #         st.write(df)
+            #         st.write(bid_df)
 
 
 
@@ -2450,7 +2067,7 @@ elif st.session_state.selected =="Data cleaning":
 
 
 
-            # request = [{"role": "system", "content":f"I'll give you the head of a panads dataframe called df, i want you to write me only a python code (i'll excute it directly so just return a code) that create in the same dataframe a new column called 'ZC from' that takes the origin country code (2 letters) and the first two digit of the origin zip or post code. and the same for a column called 'ZC to' (for the destination).here's an example: FR 92 ( keep in mind the df is not clean may have missing value or not str or not integer or numbers and letters at the same time .. Avoid any possible error) . This is my dataframe: {bd_text} " }]
+            # request = [{"role": "system", "content":f"I'll give you the head of a panads dataframe called bid_df, i want you to write me only a python code (i'll excute it directly so just return a code) that create in the same dataframe a new column called 'ZC from' that takes the origin country code (2 letters) and the first two digit of the origin zip or post code. and the same for a column called 'ZC to' (for the destination).here's an example: FR 92 ( keep in mind the df is not clean may have missing value or not str or not integer or numbers and letters at the same time .. Avoid any possible error) . This is my dataframe: {bd_text} " }]
             # try:
             #     client = OpenAI(api_key=openai_api_key) 
             #     response = client.chat.completions.create(
@@ -2466,7 +2083,7 @@ elif st.session_state.selected =="Data cleaning":
             # st.code(code, language="python")
 
             # exec(code)  
-            # st.write(df)  
+            # st.write(bid_df)  
 
 
 
