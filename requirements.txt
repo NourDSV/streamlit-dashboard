@@ -7,7 +7,7 @@ plotly
 streamlit-folium
 openpyxl
 streamlit_option_menu
-streamlit-aggrid>=0.3.4
+streamlit-aggrid==0.3.4.post3
 xlsxwriter
 PyPDF2
 openai
